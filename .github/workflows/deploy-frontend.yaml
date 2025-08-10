@@ -11,12 +11,9 @@ permissions:
   contents: read
 
 env:
-  DOCKER_CONTEXT: ./frontend/MicroTodoUI
-  IMAGE_NAME: microtodoui
-  CONTAINER_PORT: 80
-  IMAGE_TAG: ${{ github.sha }}
-  IMAGE_FULL_SHA: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-  IMAGE_FULL_MAIN: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:main
+  DOCKER_CONTEXT: ./frontend/MicroTodoUI   # your Dockerfile location
+  IMAGE_NAME: microtodoui                  # ACR repo name
+  CONTAINER_PORT: 80                       # container listens on 80
 
 jobs:
   deploy:
@@ -48,8 +45,8 @@ jobs:
           context: ${{ env.DOCKER_CONTEXT }}
           push: true
           tags: |
-            ${{ env.IMAGE_FULL_SHA }}
-            ${{ env.IMAGE_FULL_MAIN }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:main
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -69,16 +66,16 @@ jobs:
           az webapp config container set \
             -g "${{ secrets.RESOURCE_GROUP }}" \
             -n "${{ secrets.WEBAPP_NAME }}" \
-            --docker-custom-image-name "${{ env.IMAGE_FULL_SHA }}" \
+            --docker-custom-image-name "${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" \
             --docker-registry-server-url "https://${{ secrets.ACR_LOGIN_SERVER }}"
 
-          # Always set WEBSITES_PORT
+          # Always set the container port
           az webapp config appsettings set \
             -g "${{ secrets.RESOURCE_GROUP }}" \
             -n "${{ secrets.WEBAPP_NAME }}" \
             --settings WEBSITES_PORT="${{ env.CONTAINER_PORT }}"
 
-          # Conditionally set BACKEND_URL if provided
+          # Optionally set BACKEND_URL if provided
           if [ -n "${{ secrets.BACKEND_URL }}" ]; then
             az webapp config appsettings set \
               -g "${{ secrets.RESOURCE_GROUP }}" \
