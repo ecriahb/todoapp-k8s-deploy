@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  BUILD_CONTEXT: ./frontend/MicroTodoUI   # <-- renamed from DOCKER_CONTEXT
+  BUILD_CONTEXT: ./frontend   # <-- renamed from DOCKER_CONTEXT
   IMAGE_NAME: microtodoui
   CONTAINER_PORT: 80
 
