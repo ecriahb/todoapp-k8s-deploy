@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: add-task
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: add-task
@@ -15,8 +15,8 @@ spec:
       containers:
       - name: add-task
         image: prodacrdemo.azurecr.io/add-tasks:latest
-        env:
-          - name: CONNECTION_STRING
-            value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:todoapp123.database.windows.net,1433;Database=todoapp-sqldb;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+        # env:
+        #   - name: CONNECTION_STRING
+        #     value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:todoapp123.database.windows.net,1433;Database=todoapp-sqldb;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
         ports:
         - containerPort: 8000
