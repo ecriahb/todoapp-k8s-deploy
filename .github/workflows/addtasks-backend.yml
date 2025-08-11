@@ -1,64 +1,61 @@
-name: Build and Deploy - AddTasks Backend
+name: Deploy AddTasksTodoMicroservice
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "backend/AddTasksTodoMicroservice/**"
+  workflow_dispatch:
 
 env:
   BUILD_CONTEXT: ./backend/AddTasksTodoMicroservice
-  IMAGE_NAME: addtasks
-  CONTAINER_PORT: 80
-  ACR_NAME: prodacrdemo
-  ACR_LOGIN_SERVER: prodacrdemo.azurecr.io
-  RESOURCE_GROUP: prod-aks-rg
-  AKS_CLUSTER: prod-aks-demo
+  IMAGE_NAME: add-tasks
+  CONTAINER_PORT: 8080
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # OIDC federated credentials
-      contents: read    # Checkout
+      id-token: write
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Verify build context
+      - name: Verify build context exists
         run: |
-          ls -la $BUILD_CONTEXT || exit 1
-          test -f "$BUILD_CONTEXT/Dockerfile" || exit 1
+          ls -la $BUILD_CONTEXT || (echo "Path not found: $BUILD_CONTEXT" && exit 1)
+          test -f "$BUILD_CONTEXT/Dockerfile" || (echo "Dockerfile not found in $BUILD_CONTEXT" && exit 1)
 
-      - uses: azure/login@v1
+      - name: Azure Login (OIDC)
+        uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-      - name: ACR Login
-        run: az acr login --name $ACR_NAME
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - uses: docker/build-push-action@v4
+      - name: ACR login
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Build & Push to ACR
+        uses: docker/build-push-action@v4
         with:
           context: ${{ env.BUILD_CONTEXT }}
           file: ${{ env.BUILD_CONTEXT }}/Dockerfile
           push: true
           tags: |
-            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Get AKS credentials
-        run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
+      - name: AKS Login
+        run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER }} --overwrite-existing
 
       - name: Deploy to AKS
         run: |
-          kubectl set image deployment/${{ env.IMAGE_NAME }} \
-            ${{ env.IMAGE_NAME }}=${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          kubectl set image deployment/${{ env.IMAGE_NAME }} ${{ env.IMAGE_NAME }}=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
           kubectl rollout status deployment/${{ env.IMAGE_NAME }}
