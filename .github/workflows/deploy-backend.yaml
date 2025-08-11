@@ -30,28 +30,28 @@ jobs:
           resource-group: ${{ secrets.RESOURCE_GROUP }}
           cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
 
-      # 4. Log in to ACR (no username/password needed)
+      # 4. Log in to ACR
       - name: ACR Login
         run: az acr login --name ${{ secrets.ACR_NAME }}
 
       # 5. Build & Push all backend images to ACR
       - name: Build & Push Images
         run: |
-          az acr build --registry ${{ secrets.ACR_NAME }} --image get-tasks:latest ./TODOAPP-K8S-DEPLOY/GetTasksTodoMicroservice
-          az acr build --registry ${{ secrets.ACR_NAME }} --image add-tasks:latest ./TODOAPP-K8S-DEPLOY/AddTasksTodoMicroservice
-          az acr build --registry ${{ secrets.ACR_NAME }} --image delete-tasks:latest ./TODOAPP-K8S-DEPLOY/DeleteTasksTodoMicroservice
+          az acr build --registry ${{ secrets.ACR_NAME }} --image get-tasks:latest ./TODOAPP-K8S-DEPLOY/backend/GetTasksTodoMicroservice
+          az acr build --registry ${{ secrets.ACR_NAME }} --image add-tasks:latest ./TODOAPP-K8S-DEPLOY/backend/AddTasksTodoMicroservice
+          az acr build --registry ${{ secrets.ACR_NAME }} --image delete-tasks:latest ./TODOAPP-K8S-DEPLOY/backend/DeleteTasksTodoMicroservice
 
       # 6. Deploy to AKS
       - name: Deploy manifests
         uses: Azure/k8s-deploy@v5
         with:
           manifests: |
-            TODOAPP-K8S-DEPLOY/GetTasksTodoMicroservice/manifests/deployment.yaml
-            TODOAPP-K8S-DEPLOY/GetTasksTodoMicroservice/manifests/service.yaml
-            TODOAPP-K8S-DEPLOY/AddTasksTodoMicroservice/manifests/deployment.yaml
-            TODOAPP-K8S-DEPLOY/AddTasksTodoMicroservice/manifests/service.yaml
-            TODOAPP-K8S-DEPLOY/DeleteTasksTodoMicroservice/manifests/deployment.yaml
-            TODOAPP-K8S-DEPLOY/DeleteTasksTodoMicroservice/manifests/service.yaml
+            TODOAPP-K8S-DEPLOY/backend/GetTasksTodoMicroservice/manifests/deployment.yaml
+            TODOAPP-K8S-DEPLOY/backend/GetTasksTodoMicroservice/manifests/service.yaml
+            TODOAPP-K8S-DEPLOY/backend/AddTasksTodoMicroservice/manifests/deployment.yaml
+            TODOAPP-K8S-DEPLOY/backend/AddTasksTodoMicroservice/manifests/service.yaml
+            TODOAPP-K8S-DEPLOY/backend/DeleteTasksTodoMicroservice/manifests/deployment.yaml
+            TODOAPP-K8S-DEPLOY/backend/DeleteTasksTodoMicroservice/manifests/service.yaml
           images: |
             ${{ secrets.ACR_LOGIN_SERVER }}/get-tasks:latest
             ${{ secrets.ACR_LOGIN_SERVER }}/add-tasks:latest
