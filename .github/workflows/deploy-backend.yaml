@@ -1,12 +1,16 @@
 name: Deploy to AKS
 
 on:
-  push:
+  workflow_dispatch: # Manual trigger only
     branches:
       - main
 
+permissions:
+  id-token: write   # Required for federated credentials
+  contents: read    # Required to checkout code
+
 env:
-  ACR_NAME: prodacrdemo                # e.g. myregistry
+  ACR_NAME: prodacrdemo
   ACR_LOGIN_SERVER: prodacrdemo.azurecr.io
   RESOURCE_GROUP: prod-aks-rg
   AKS_CLUSTER: prod-aks-demo
@@ -32,12 +36,10 @@ jobs:
         run: |
           az acr login --name $ACR_NAME
 
-          # Build all images
           docker build -t $ACR_LOGIN_SERVER/get-tasks:latest ./backend/GetTasksTodoMicroservice
           docker build -t $ACR_LOGIN_SERVER/add-tasks:latest ./backend/AddTasksTodoMicroservice
           docker build -t $ACR_LOGIN_SERVER/delete-tasks:latest ./backend/DeleteTasksTodoMicroservice
           
-          # Push all images
           docker push $ACR_LOGIN_SERVER/get-tasks:latest
           docker push $ACR_LOGIN_SERVER/add-tasks:latest
           docker push $ACR_LOGIN_SERVER/delete-tasks:latest
