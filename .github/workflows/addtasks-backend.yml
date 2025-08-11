@@ -12,6 +12,7 @@ env:
   AKS_CLUSTER: prod-aks-demo
   ACR_NAME: prodacrdemo
   BUILD_CONTEXT: ./backend/AddTaskTodoMicroservice
+  BUILD_CONTEXT_k8s: ./backend/AddTaskTodoMicroservice/manifests
   IMAGE_NAME: add-tasks
   CONTAINER_PORT: 8080
 
@@ -53,4 +54,5 @@ jobs:
 
       - name: Deploy to AKS
         run: |
-          kubectl apply -f $BUILD_CONTEXT/deployment.yaml
+          kubectl apply -f $BUILD_CONTEXT_k8s/deployment.yaml
+          kubectl apply -f $BUILD_CONTEXT_k8s/service.yaml
