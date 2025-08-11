@@ -1,4 +1,4 @@
-name: Build & Deploy Add Task
+name: Build & Deploy get Task
 
 on:
   workflow_dispatch:
