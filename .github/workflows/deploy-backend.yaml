@@ -5,40 +5,46 @@ on:
     branches:
       - main
 
+env:
+  ACR_NAME: prodacrdemo                # e.g. myregistry
+  ACR_LOGIN_SERVER: prodacrdemo.azurecr.io
+  RESOURCE_GROUP: prod-aks-rg
+  AKS_CLUSTER: prod-aks-demo
+
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
     steps:
-      # 1. Checkout repo
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # 2. Azure login using federated credentials
-      - name: Azure Login
+      # 1. Azure login with federated credentials
+      - name: Azure login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # 3. Set AKS context
-      - name: Get AKS credentials
-        run: az aks get-credentials --resource-group ${{ secrets.RESOURCE_GROUP }} --name ${{ secrets.AKS_CLUSTER_NAME }} --overwrite-existing
+      # 2. Checkout repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      # 4. Build & push Docker images to ACR
-      - name: Build and Push GetTasks image
+      # 3. Build and push all backend images
+      - name: Build and push backend images
         run: |
-          az acr build --registry ${{ secrets.ACR_NAME }} --image get-tasks:latest ./backend/GetTasksTodoMicroservice
-      - name: Build and Push AddTasks image
-        run: |
-          az acr build --registry ${{ secrets.ACR_NAME }} --image add-tasks:latest ./backend/AddTasksTodoMicroservice
-      - name: Build and Push DeleteTasks image
-        run: |
-          az acr build --registry ${{ secrets.ACR_NAME }} --image delete-tasks:latest ./backend/DeleteTasksTodoMicroservice
+          az acr login --name $ACR_NAME
+
+          # Build all images
+          docker build -t $ACR_LOGIN_SERVER/get-tasks:latest ./backend/GetTasksTodoMicroservice
+          docker build -t $ACR_LOGIN_SERVER/add-tasks:latest ./backend/AddTasksTodoMicroservice
+          docker build -t $ACR_LOGIN_SERVER/delete-tasks:latest ./backend/DeleteTasksTodoMicroservice
+          
+          # Push all images
+          docker push $ACR_LOGIN_SERVER/get-tasks:latest
+          docker push $ACR_LOGIN_SERVER/add-tasks:latest
+          docker push $ACR_LOGIN_SERVER/delete-tasks:latest
+
+      # 4. Get AKS credentials
+      - name: Get AKS credentials
+        run: az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
 
       # 5. Deploy to AKS
       - name: Deploy manifests
@@ -52,8 +58,6 @@ jobs:
             backend/DeleteTasksTodoMicroservice/manifests/deployment.yaml
             backend/DeleteTasksTodoMicroservice/manifests/service.yaml
           images: |
-            ${{ secrets.ACR_LOGIN_SERVER }}/get-tasks:latest
-            ${{ secrets.ACR_LOGIN_SERVER }}/add-tasks:latest
-            ${{ secrets.ACR_LOGIN_SERVER }}/delete-tasks:latest
-          imagepullsecrets: |
-            acr-secret
+            ${{ env.ACR_LOGIN_SERVER }}/get-tasks:latest
+            ${{ env.ACR_LOGIN_SERVER }}/add-tasks:latest
+            ${{ env.ACR_LOGIN_SERVER }}/delete-tasks:latest
