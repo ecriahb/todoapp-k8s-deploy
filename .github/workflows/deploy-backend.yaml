@@ -1,4 +1,4 @@
-name: Build & Deploy All Backends
+name: Build and Deploy Microservices
 
 on:
   push:
@@ -7,56 +7,49 @@ on:
 
 env:
   ACR_NAME: prodacrdemo
-  RESOURCE_GROUP: prod-aks-rg
-  CLUSTER_NAME: prod-aks-demo
-  NAMESPACE: default
-
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
-  build-and-deploy:
+  build_add:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service:
-          - AddTaskTodoMicroservice
-          - DeleteTaskTodoMicroservice
-          - GetTasksTodoMicroservice
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Azure Login with Federated Identity
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Build and Push Docker image
+      - uses: actions/checkout@v4
+      - name: Build AddTasksTodoMicroservice
         run: |
-          IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
-          echo "Building $IMAGE_NAME"
           az acr build \
             --registry ${{ env.ACR_NAME }} \
-            --image ${{ matrix.service }}:${{ github.sha }} \
-            ./${{ matrix.service }}
+            --image AddTasksTodoMicroservice:${{ github.sha }} \
+            ./TODOAPP-K8S-DEPLOY/AddTasksTodoMicroservice
 
-      - name: Get AKS credentials
+  build_get:
+    needs: build_add
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build GetTasksTodoMicroservice
         run: |
-          az aks get-credentials \
-            --resource-group ${{ env.RESOURCE_GROUP }} \
-            --name ${{ env.CLUSTER_NAME }} \
-            --overwrite-existing
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image GetTasksTodoMicroservice:${{ github.sha }} \
+            ./TODOAPP-K8S-DEPLOY/GetTasksTodoMicroservice
 
-      - name: Update Deployment Manifest with New Image
+  build_delete:
+    needs: build_get
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build DeleteTasksTodoMicroservice
         run: |
-          IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
-          DEPLOYMENT_FILE=./${{ matrix.service }}/manifests/deployment.yaml
-          sed -i "s|\(image:\s*\).*|\1$IMAGE_NAME|g" "$DEPLOYMENT_FILE"
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image DeleteTasksTodoMicroservice:${{ github.sha }} \
+            ./TODOAPP-K8S-DEPLOY/DeleteTasksTodoMicroservice
 
-      - name: Apply All Manifests
+  deploy:
+    needs: build_delete
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to AKS
         run: |
-          kubectl apply -f ./${{ matrix.service }}/manifests/ --namespace ${{ env.NAMESPACE }}
+          # Example deploy command (replace with your own)
+          kubectl apply -f ./TODOAPP-K8S-DEPLOY/k8s-manifests/
