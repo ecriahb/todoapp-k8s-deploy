@@ -40,9 +40,9 @@ jobs:
         run: |
           az acr login --name $ACR_NAME
 
-      - name: Build Docker image
+      - name: Build Docker image for linux/amd64
         run: |
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest $BUILD_CONTEXT
+          docker build --platform linux/amd64 -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest $BUILD_CONTEXT
 
       - name: Push Docker image
         run: |
