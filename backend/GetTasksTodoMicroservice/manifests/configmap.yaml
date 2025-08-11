@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: fruitdetails
-data:
-  FRUITNAME1: mango
-  FRUITNAME2: orange
-  FRUITNAME3: apple 

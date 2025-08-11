@@ -2,8 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: delete-task
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   selector:
     app: delete-task
   ports:
