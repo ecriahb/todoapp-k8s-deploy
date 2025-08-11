@@ -1,55 +1,88 @@
-name: Build and Deploy Microservices
+name: Deploy Backends Sequentially
 
 on:
   push:
     branches:
       - main
 
-env:
-  ACR_NAME: prodacrdemo
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  build_add:
+  deploy-addtask:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build AddTasksTodoMicroservice
-        run: |
-          az acr build \
-            --registry ${{ env.ACR_NAME }} \
-            --image AddTasksTodoMicroservice:${{ github.sha }} \
-            ./TODOAPP-K8S-DEPLOY/AddTasksTodoMicroservice
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  build_get:
-    needs: build_add
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build GetTasksTodoMicroservice
-        run: |
-          az acr build \
-            --registry ${{ env.ACR_NAME }} \
-            --image GetTasksTodoMicroservice:${{ github.sha }} \
-            ./TODOAPP-K8S-DEPLOY/GetTasksTodoMicroservice
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-  build_delete:
-    needs: build_get
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build DeleteTasksTodoMicroservice
-        run: |
-          az acr build \
-            --registry ${{ env.ACR_NAME }} \
-            --image DeleteTasksTodoMicroservice:${{ github.sha }} \
-            ./TODOAPP-K8S-DEPLOY/DeleteTasksTodoMicroservice
+      - name: Deploy AddTaskTodoMicroservice
+        uses: Azure/k8s-deploy@v5
+        with:
+          manifests: |
+            ./AddTaskTodoMicroservice/manifests/deployment.yaml
+            ./AddTaskTodoMicroservice/manifests/service.yaml
+          images: prodacrdemo.azurecr.io/addtask:${{ github.sha }}
+          namespace: default
 
-  deploy:
-    needs: build_delete
+      - name: Wait for AddTask to be Ready
+        run: kubectl rollout status deployment/addtasktodomicroservice -n default
+
+  deploy-gettask:
     runs-on: ubuntu-latest
+    needs: deploy-addtask
     steps:
-      - uses: actions/checkout@v4
-      - name: Deploy to AKS
-        run: |
-          # Example deploy command (replace with your own)
-          kubectl apply -f ./TODOAPP-K8S-DEPLOY/k8s-manifests/
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy GetTasksTodoMicroservice
+        uses: Azure/k8s-deploy@v5
+        with:
+          manifests: |
+            ./GetTasksTodoMicroservice/manifests/deployment.yaml
+            ./GetTasksTodoMicroservice/manifests/service.yaml
+          images: prodacrdemo.azurecr.io/gettasks:${{ github.sha }}
+          namespace: default
+
+      - name: Wait for GetTasks to be Ready
+        run: kubectl rollout status deployment/gettaskstodomicroservice -n default
+
+  deploy-deletetask:
+    runs-on: ubuntu-latest
+    needs: deploy-gettask
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy DeleteTasksTodoMicroservice
+        uses: Azure/k8s-deploy@v5
+        with:
+          manifests: |
+            ./DeleteTasksTodoMicroservice/manifests/deployment.yaml
+            ./DeleteTasksTodoMicroservice/manifests/service.yaml
+          images: prodacrdemo.azurecr.io/deletetasks:${{ github.sha }}
+          namespace: default
+
+      - name: Wait for DeleteTasks to be Ready
+        run: kubectl rollout status deployment/deletetaskstodomicroservice -n default
