@@ -1,0 +1,62 @@
+name: Build & Deploy All Backends
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  ACR_NAME: yourACRname              # e.g., myregistry
+  RESOURCE_GROUP: yourResourceGroup
+  CLUSTER_NAME: yourAKScluster
+  NAMESPACE: default
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - AddTaskTodoMicroservice
+          - DeleteTaskTodoMicroservice
+          - GetTasksTodoMicroservice
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login with Federated Identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and Push Docker image
+        run: |
+          IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
+          echo "Building $IMAGE_NAME"
+          az acr build \
+            --registry ${{ env.ACR_NAME }} \
+            --image ${{ matrix.service }}:${{ github.sha }} \
+            ./${{ matrix.service }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --name ${{ env.CLUSTER_NAME }} \
+            --overwrite-existing
+
+      - name: Update Deployment Manifest with New Image
+        run: |
+          IMAGE_NAME=${{ env.ACR_NAME }}.azurecr.io/${{ matrix.service }}:${{ github.sha }}
+          DEPLOYMENT_FILE=./${{ matrix.service }}/manifests/deployment.yaml
+          sed -i "s|\(image:\s*\).*|\1$IMAGE_NAME|g" "$DEPLOYMENT_FILE"
+
+      - name: Apply All Manifests
+        run: |
+          kubectl apply -f ./${{ matrix.service }}/manifests/ --namespace ${{ env.NAMESPACE }}

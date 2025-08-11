@@ -16,7 +16,7 @@ spec:
       - name: delete-task
         env:
           - name: CONNECTION_STRING
-            value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:devopsinsiderssrv.database.windows.net,1433;Database=todoapp;Uid=devopsadmin;Pwd=P@ssw01rd@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
+            value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:todoapp123.database.windows.net,1433;Database=todoapp-sqldb;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
         image: devopsinsiders/delete-task
         ports:
         - containerPort: 8000
