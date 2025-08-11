@@ -35,9 +35,17 @@ jobs:
           ls -la $BUILD_CONTEXT || (echo "Path not found: $BUILD_CONTEXT" && exit 1)
           test -f "$BUILD_CONTEXT/Dockerfile" || (echo "Dockerfile not found in $BUILD_CONTEXT" && exit 1)
 
-      - name: Build and Push image to ACR
+      - name: Log in to ACR
         run: |
-          az acr build --registry $ACR_NAME --image $IMAGE_NAME:latest $BUILD_CONTEXT
+          az acr login --name $ACR_NAME
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest $BUILD_CONTEXT
+
+      - name: Push Docker image
+        run: |
+          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
 
       - name: Get AKS credentials
         run: |
