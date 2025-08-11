@@ -6,9 +6,9 @@ on:
       - main
 
 env:
-  ACR_NAME: yourACRname              # e.g., myregistry
-  RESOURCE_GROUP: yourResourceGroup
-  CLUSTER_NAME: yourAKScluster
+  ACR_NAME: prodacrdemo
+  RESOURCE_GROUP: prod-aks-rg
+  CLUSTER_NAME: prod-aks-demo
   NAMESPACE: default
 
 permissions:
