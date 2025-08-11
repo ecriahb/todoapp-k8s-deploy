@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  BUILD_CONTEXT: ./backend/GetTasksTodoMicroservice
+  BUILD_CONTEXT: ./backend/GetTaskTodoMicroservice
   IMAGE_NAME: get-tasks
   CONTAINER_PORT: 8080
 

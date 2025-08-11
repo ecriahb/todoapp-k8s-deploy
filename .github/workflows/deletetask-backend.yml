@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  BUILD_CONTEXT: ./backend/DeleteTasksTodoMicroservice
+  BUILD_CONTEXT: ./backend/DeleteTaskTodoMicroservice
   IMAGE_NAME: delete-tasks
   CONTAINER_PORT: 8080
 
