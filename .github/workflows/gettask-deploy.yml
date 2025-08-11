@@ -10,7 +10,7 @@ permissions:
 env:
   RESOURCE_GROUP: prod-aks-rg
   AKS_CLUSTER: prod-aks-demo
-  ACR_NAME: myregistry
+  ACR_NAME: prodacrdemo
   BUILD_CONTEXT: ./backend/GetTasksTodoMicroservice
   IMAGE_NAME: update-tasks
   CONTAINER_PORT: 8080
