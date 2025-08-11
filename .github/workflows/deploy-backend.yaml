@@ -1,21 +1,26 @@
 name: Deploy Backend Services to AKS
 
 on:
-    workflow_dispatch: # Manual trigger
+  workflow_dispatch: # Manual trigger only
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for federated identity
+      contents: read
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Login to Azure
+      # Azure Login with Federated Credentials
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       # Set AKS context
       - name: Set AKS context
@@ -24,14 +29,15 @@ jobs:
           resource-group: ${{ secrets.AKS_RESOURCE_GROUP }}
           cluster-name: ${{ secrets.AKS_CLUSTER_NAME }}
 
-      # ---------------------- AddTaskTodoMicroservice ----------------------
-      - name: Build & Push AddTaskTodoMicroservice image
+      # Login to ACR
+      - name: Azure Container Registry Login
         uses: azure/docker-login@v1
         with:
           login-server: ${{ secrets.ACR_LOGIN_SERVER }}
           username: ${{ secrets.ACR_USERNAME }}
           password: ${{ secrets.ACR_PASSWORD }}
 
+      # ---------------------- AddTaskTodoMicroservice ----------------------
       - run: |
           docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/addtask-todo:latest ./backend/AddTaskTodoMicroservice
           docker push ${{ secrets.ACR_LOGIN_SERVER }}/addtask-todo:latest
