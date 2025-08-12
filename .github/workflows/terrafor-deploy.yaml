@@ -1,9 +1,6 @@
 name: Deploy TodoApp Infra
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -28,10 +25,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
+        working-directory: todoapp-tf
         run: terraform init
 
       - name: Terraform Plan
+        working-directory: todoapp-tf
         run: terraform plan
 
       - name: Terraform Apply
+        working-directory: todoapp-tf
         run: terraform apply -auto-approve
