@@ -6,7 +6,7 @@ resource "azurerm_service_plan" "asp" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   os_type             = "Linux"
-  sku_name            = "B1" # Change if you need more capacity
+  sku_name            = "S1" # Change if you need more capacity
 }
 
 # -------------------------------
