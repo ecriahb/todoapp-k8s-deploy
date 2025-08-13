@@ -2,18 +2,18 @@
 # App Service Plan
 # -------------------------------
 resource "azurerm_service_plan" "asp" {
-  name                = "todoapp-demo-asp"
+  name                = "todoapp-asp"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   os_type             = "Linux"
-  sku_name            = "B1" # Change if you need more capacity
+  sku_name            = "F1" # Change if you need more capacity
 }
 
 # -------------------------------
 # Web App for Container (from ACR)
 # -------------------------------
 resource "azurerm_linux_web_app" "webapp" {
-  name                = "todoapp-demo-webapp"
+  name                = "todoapp-webapp"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_service_plan.asp.location
   service_plan_id     = azurerm_service_plan.asp.id
