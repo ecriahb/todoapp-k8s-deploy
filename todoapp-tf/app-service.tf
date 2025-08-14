@@ -4,7 +4,7 @@
 resource "azurerm_service_plan" "asp" {
   name                = "todoapp-asp"
   resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  location            = "Central US"
   os_type             = "Linux"
   sku_name            = "B1" # Changed from S1 to B1 to avoid quota errors
 }
