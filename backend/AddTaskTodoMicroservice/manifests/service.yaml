@@ -3,11 +3,12 @@ kind: Service
 metadata:
   name: add-task
   annotations:
+    # Internal LoadBalancer in Azure
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   type: LoadBalancer
   selector:
     app: add-task
   ports:
-    - port: 80
-      targetPort: 8000
+    - port: 80           # App Gateway will call this port
+      targetPort: 8000   # Container port
