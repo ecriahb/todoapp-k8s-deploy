@@ -34,10 +34,10 @@ resource "azurerm_linux_web_app" "webapp" {
 
   # App settings for container startup & logging
   app_settings = {
-    WEBSITES_PORT                      = "8080"  # Change to match your app's port
-    WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
+    WEBSITES_PORT                      = "80"  # Change to match your app's port
+    #WEBSITES_ENABLE_APP_SERVICE_STORAGE = "false"
     DOCKER_ENABLE_CI                    = "true"
-    WEBSITES_CONTAINER_START_TIME_LIMIT = "300"  # Allow 5 minutes for container startup
+    WEBSITES_CONTAINER_START_TIME_LIMIT = "600"  # Allow 5 minutes for container startup
   }
 
   tags = {
