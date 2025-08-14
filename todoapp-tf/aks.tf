@@ -22,10 +22,13 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_plugin    = "azure"
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
+
+    # Avoid conflicts with VNet subnets
+    service_cidr      = "10.244.0.0/16"  # Must not overlap with any subnet
+    dns_service_ip    = "10.244.0.10"
   }
 
   lifecycle {
-    # Keep it calm if you tweak node pool interactively
     ignore_changes = [default_node_pool]
   }
 
@@ -43,4 +46,3 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
     azurerm_kubernetes_cluster.aks
   ]
 }
-
