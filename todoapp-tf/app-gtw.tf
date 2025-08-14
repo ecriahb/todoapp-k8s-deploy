@@ -43,7 +43,7 @@ resource "azurerm_application_gateway" "appgateway" {
 
   backend_address_pool {
     name  = local.backend_address_pool_name
-     ip_addresses = ""  # pass internal AKS LB IP
+     ip_addresses = []  # pass internal AKS LB IP
   }
 
   backend_http_settings {
