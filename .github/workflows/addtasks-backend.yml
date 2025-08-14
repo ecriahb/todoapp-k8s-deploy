@@ -8,9 +8,9 @@ permissions:
   contents: read
 
 env:
-  RESOURCE_GROUP: prod-aks-rg
-  AKS_CLUSTER: prod-aks-demo
-  ACR_NAME: prodacrdemo
+  RESOURCE_GROUP: todoapp-rg
+  AKS_CLUSTER: todoapp-aks
+  ACR_NAME: todoappacr
   BUILD_CONTEXT: ./backend/AddTaskTodoMicroservice
   BUILD_CONTEXT_k8s: ./backend/AddTaskTodoMicroservice/manifests
   IMAGE_NAME: add-tasks
