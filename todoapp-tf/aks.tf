@@ -1,27 +1,29 @@
 # -------------------------------
-# AKS Cluster
+# AKS (kept minimal update to avoid 404 errors if node RG missing)
 # -------------------------------
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = "todoapp-aks"
-  location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "todoappdemoaks"
+  location            = azurerm_resource_group.rg.location
+  dns_prefix          = "todoapp-aks"
 
   default_node_pool {
     name       = "systempool"
     node_count = 1
-    vm_size    = "Standard_D2ps_v6"
+    vm_size    = "Standard_B2s"
   }
 
   identity {
     type = "SystemAssigned"
   }
 
-  tags = {
-    environment = "production"
-    app         = "todoapp-demo"
+  lifecycle {
+    ignore_changes = [
+      default_node_pool
+    ]
   }
 }
+
 
 # -------------------------------
 # Allow AKS to pull from ACR
