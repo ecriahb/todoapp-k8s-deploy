@@ -3,7 +3,7 @@ terraform {
   required_version = ">= 1.1.0"
 
   backend "azurerm" {
-    resource_group_name   = "todoapp-tf"
+    resource_group_name   = "zelectric-rg"
     storage_account_name  = "todoapptftest"   # must be globally unique
     container_name        = "tfstate"
     key                   = "todoapp-demo.tfstate"
