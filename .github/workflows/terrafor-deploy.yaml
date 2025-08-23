@@ -32,11 +32,12 @@ jobs:
         working-directory: todoapp-tf
         run: terraform plan
 
-      - name: Terraform Apply
-        working-directory: todoapp-tf
-        run: terraform apply -auto-approve
-
-      # - name: Terraform destroy
+      # - name: Terraform Apply
       #   working-directory: todoapp-tf
-      #   run: terraform destroy -auto-approve
+      #   run: terraform apply -auto-approve
+
+      - name: Terraform destroy
+        working-directory: todoapp-tf
+        run: terraform destroy -auto-approve
+
 
