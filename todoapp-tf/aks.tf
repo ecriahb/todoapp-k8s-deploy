@@ -32,7 +32,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     ignore_changes = [default_node_pool]
   }
 
-  depends_on = [azurerm_subnet.aks_subnet]
+  depends_on = [azurerm_subnet.aks_subnet ,azurerm_service_plan.asp ]
 }
 
 # Allow AKS Kubelet to pull from ACR
@@ -46,3 +46,4 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
     azurerm_kubernetes_cluster.aks
   ]
 }
+
