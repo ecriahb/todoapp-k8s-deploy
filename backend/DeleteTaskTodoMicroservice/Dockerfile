@@ -1,20 +1,21 @@
-# Use the official Python image as the base image
-FROM python:3.9
+FROM python:3.9-slim
 
-# Set the working directory in the container
 WORKDIR /app
-
-# Copy the application files into the container
 COPY . .
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y unixodbc unixodbc-dev
-RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
-RUN curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list
-RUN apt-get update
-RUN ACCEPT_EULA=Y apt-get install -y msodbcsql17
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN pip install -r requirements.txt
+# Install prerequisites, add Microsoft signing key without apt-key, add MS repo and install ODBC driver
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg unixodbc unixodbc-dev lsb-release \
+ && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg \
+ && curl -fsSL https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+ && apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
-# Start the FastAPI application
+RUN pip install --no-cache-dir -r requirements.txt
+
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
