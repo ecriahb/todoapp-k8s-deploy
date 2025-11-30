@@ -8,9 +8,9 @@ permissions:
   contents: read
 
 env:
-  RESOURCE_GROUP: prod-aks-rg
-  AKS_CLUSTER: prod-aks-demo
-  ACR_NAME: prodacrdemo
+  RESOURCE_GROUP: todoapp-rg
+  AKS_CLUSTER: todoapp-aks
+  ACR_NAME: todoappacr2ly
   BUILD_CONTEXT: ./backend/GetTasksTodoMicroservice
   IMAGE_NAME: update-tasks
   CONTAINER_PORT: 8080
@@ -23,12 +23,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Azure Login with Federated Credentials
-        uses: azure/login@v2
+      - name: Azure Login using Azure Credentials
+        uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Debug build context
         run: |
@@ -46,3 +44,4 @@ jobs:
       - name: Deploy to AKS
         run: |
           kubectl apply -f $BUILD_CONTEXT/deployment.yaml
+
