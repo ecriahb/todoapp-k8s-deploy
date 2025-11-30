@@ -3,5 +3,6 @@
 # -------------------------------
 resource "azurerm_resource_group" "rg" {
   name     = "todoapp-rg"
-  location = "East US"
+  location = "East US2"
 }
+
