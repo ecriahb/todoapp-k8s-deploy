@@ -4,7 +4,7 @@ resource "azurerm_mssql_server" "sqlserver" {
   location                     = "eastus2"  # Change from current restricted region
   version                      = "12.0"
   administrator_login          = "sqladminuser"
-  administrator_login_password = var.sql_admin_password
+  administrator_login_password = "abcd1234"
 }
 
 
