@@ -11,7 +11,7 @@ env:
   RESOURCE_GROUP: todoapp-rg
   AKS_CLUSTER: todoapp-aks
   ACR_NAME: todoappacr2ly
-  BUILD_CONTEXT: /frontend
+  BUILD_CONTEXT: ./frontend
   BUILD_CONTEXT_k8s: ./frontend
   IMAGE_NAME: todo-ui
   CONTAINER_PORT: 8080
