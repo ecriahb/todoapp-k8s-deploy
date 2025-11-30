@@ -3,8 +3,8 @@ terraform {
   required_version = ">= 1.1.0"
 
   backend "azurerm" {
-    resource_group_name   = "todoapp-tf"
-    storage_account_name  = "todoapptf"   # must be globally unique
+    resource_group_name   = "aks-rg"
+    storage_account_name  = "tfstorageinfra123"   # must be globally unique
     container_name        = "tfstate"
     key                   = "todoapp-demo.tfstate"
   }
@@ -28,4 +28,5 @@ provider "azurerm" {
 }
 
 provider "random" {}
+
 
