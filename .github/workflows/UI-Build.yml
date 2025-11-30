@@ -1,4 +1,4 @@
-name: Build & Deploy Add Tasks
+name: Build todoUI
 
 on:
   workflow_dispatch:
