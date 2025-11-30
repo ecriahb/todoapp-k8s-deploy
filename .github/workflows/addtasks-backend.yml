@@ -10,7 +10,7 @@ permissions:
 env:
   RESOURCE_GROUP: todoapp-rg
   AKS_CLUSTER: todoapp-aks
-  ACR_NAME: todoappacr
+  ACR_NAME: todoappacr2ly
   BUILD_CONTEXT: ./backend/AddTaskTodoMicroservice
   BUILD_CONTEXT_k8s: ./backend/AddTaskTodoMicroservice/manifests
   IMAGE_NAME: add-tasks
@@ -48,11 +48,12 @@ jobs:
         run: |
           docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
 
-      - name: Get AKS credentials
-        run: |
-          az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
+      # - name: Get AKS credentials
+      #   run: |
+      #     az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
 
-      - name: Deploy to AKS
-        run: |
-          kubectl apply -f $BUILD_CONTEXT_k8s/deployment.yaml
-          kubectl apply -f $BUILD_CONTEXT_k8s/service.yaml
+      # - name: Deploy to AKS
+      #   run: |
+      #     kubectl apply -f $BUILD_CONTEXT_k8s/deployment.yaml
+      #     kubectl apply -f $BUILD_CONTEXT_k8s/service.yaml
+
