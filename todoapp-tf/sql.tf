@@ -4,7 +4,7 @@ resource "azurerm_mssql_server" "sqlserver" {
  location            = azurerm_resource_group.rg.location
   version                      = "12.0"
   administrator_login          = "sqladminuser"
-  administrator_login_password = "abcd1234"
+  administrator_login_password = "abcd@@@!!!1234"
 }
 
 
