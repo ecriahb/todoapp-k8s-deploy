@@ -1,7 +1,7 @@
 resource "azurerm_mssql_server" "sqlserver" {
   name                         = "todo-sql-server-007"
   resource_group_name          = "todoapp-rg"
-  location                     = "eastus2"  # Change from current restricted region
+  location                     = "eastus"  # Change from current restricted region
   version                      = "12.0"
   administrator_login          = "sqladminuser"
   administrator_login_password = "abcd1234"
