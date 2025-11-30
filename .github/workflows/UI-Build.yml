@@ -1,0 +1,57 @@
+name: Build & Deploy Add Tasks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: todoapp-rg
+  AKS_CLUSTER: todoapp-aks
+  ACR_NAME: todoappacr2ly
+  BUILD_CONTEXT: /frontend
+  BUILD_CONTEXT_k8s: ./frontend
+  IMAGE_NAME: todo-ui
+  CONTAINER_PORT: 8080
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login using Azure Credentials
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          
+      - name: Debug build context
+        run: |
+          ls -la $BUILD_CONTEXT || (echo "Path not found: $BUILD_CONTEXT" && exit 1)
+          test -f "$BUILD_CONTEXT/Dockerfile" || (echo "Dockerfile not found in $BUILD_CONTEXT" && exit 1)
+
+      - name: Log in to ACR
+        run: |
+          az acr login --name $ACR_NAME
+
+      - name: Build Docker image for linux/amd64
+        run: |
+          docker build --platform linux/amd64 -t $ACR_NAME.azurecr.io/$IMAGE_NAME:latest $BUILD_CONTEXT
+
+      - name: Push Docker image
+        run: |
+          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:latest
+
+      # - name: Get AKS credentials
+      #   run: |
+      #     az aks get-credentials --resource-group $RESOURCE_GROUP --name $AKS_CLUSTER --overwrite-existing
+
+      # - name: Deploy to AKS
+      #   run: |
+      #     kubectl apply -f $BUILD_CONTEXT_k8s/deployment.yaml
+      #     kubectl apply -f $BUILD_CONTEXT_k8s/service.yaml
+
