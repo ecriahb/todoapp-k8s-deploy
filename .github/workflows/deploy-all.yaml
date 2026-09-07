@@ -1,0 +1,127 @@
+name: One Click - Infra + TodoApp
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  RESOURCE_GROUP: todoapp-rg
+  AKS_CLUSTER: todoapp-aks
+  ACR_NAME: todoappacr2ly
+  TF_DIR: ./todoapp-tf
+
+jobs:
+  deploy:
+    name: Terraform → Build → Deploy → Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
+      - name: Verify AKS
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and Push Add Tasks
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" \
+            ./backend/AddTaskTodoMicroservice
+          docker push "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
+
+      - name: Build and Push Get Tasks
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" \
+            ./backend/GetTasksTodoMicroservice
+          docker push "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
+
+      - name: Build and Push Delete Tasks
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" \
+            ./backend/DeleteTaskTodoMicroservice
+          docker push "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+
+      - name: Build and Push Frontend
+        run: |
+          docker build --platform linux/amd64 \
+            -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" \
+            ./frontend
+          docker push "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+
+      - name: Apply Backend Kubernetes Manifests
+        run: |
+          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/
+          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/
+          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/
+
+      - name: Apply Frontend Kubernetes Manifests
+        run: |
+          kubectl apply -f ./frontend/manifests/
+
+      - name: Set Immutable Image Tags
+        run: |
+          kubectl -n default set image deployment/add-task \
+            add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/get-tasks \
+            get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/delete-task \
+            delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/todo-ui \
+            todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+
+      - name: Wait for Rollouts
+        run: |
+          kubectl rollout status deployment/add-task --timeout=180s
+          kubectl rollout status deployment/get-tasks --timeout=180s
+          kubectl rollout status deployment/delete-task --timeout=180s
+          kubectl rollout status deployment/todo-ui --timeout=180s
+
+      - name: Final Verification
+        run: |
+          echo '=== Deployments ==='
+          kubectl get deployments -o wide
+          echo '=== Pods ==='
+          kubectl get pods -o wide
+          echo '=== Services ==='
+          kubectl get svc -o wide
