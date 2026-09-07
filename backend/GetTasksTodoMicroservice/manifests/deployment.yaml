@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: get-tasks
+  name: agentic-get-tasks
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: get-tasks
+      app: agentic-get-tasks
   template:
     metadata:
       labels:
-        app: get-tasks
+        app: agentic-get-tasks
     spec:
       containers:
-      - name: get-tasks
+      - name: agentic-get-tasks
         env:
           - name: CONNECTION_STRING
             value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:agentic-devops-sql.database.windows.net,1433;Database=todoapp;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
-        image: devopsinsiders/get-tasks
+        image: agenticdevopsacr.azurecr.io/get-tasks:latest
         ports:
         - containerPort: 8000
