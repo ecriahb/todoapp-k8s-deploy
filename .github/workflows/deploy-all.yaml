@@ -8,9 +8,9 @@ permissions:
   id-token: write
 
 env:
-  RESOURCE_GROUP: todoapp-rg
-  AKS_CLUSTER: todoapp-aks
-  ACR_NAME: todoappacr2ly
+  RESOURCE_GROUP: agentic-devops-rg
+  AKS_CLUSTER: agentic-devops-aks
+  ACR_NAME: agenticdevopsacr
   TF_DIR: ./todoapp-tf
 
 jobs:
