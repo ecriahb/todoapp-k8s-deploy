@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-ui
+spec:
+  type: LoadBalancer
+  selector:
+    app: todo-ui
+  ports:
+    - port: 80
+      targetPort: 8080
