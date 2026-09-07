@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: add-task
+  name: agentic-add-task
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: add-task
+      app: agentic-add-task
   template:
     metadata:
       labels:
-        app: add-task
+        app: agentic-add-task
     spec:
       containers:
-      - name: add-task
-        image: todoappacr.azurecr.io/add-tasks:latest
+      - name: agentic-add-task
+        image: agenticdevopsacr.azurecr.io/add-tasks:latest
         ports:
         - containerPort: 8000
