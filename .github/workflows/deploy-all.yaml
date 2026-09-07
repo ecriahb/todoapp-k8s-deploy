@@ -91,31 +91,35 @@ jobs:
 
       - name: Apply Backend Kubernetes Manifests
         run: |
-          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/
-          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/
-          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/
+          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/deployment.yaml
+          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/service.yaml
+          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/deployment.yaml
+          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/service.yaml
+          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/deployment.yaml
+          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/service.yaml
 
       - name: Apply Frontend Kubernetes Manifests
         run: |
-          kubectl apply -f ./frontend/manifests/
+          kubectl apply -f ./frontend/manifests/deployment.yaml
+          kubectl apply -f ./frontend/manifests/service.yaml
 
       - name: Set Immutable Image Tags
         run: |
-          kubectl -n default set image deployment/add-task \
-            add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/get-tasks \
-            get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/delete-task \
-            delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/todo-ui \
-            todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-add-task \
+            agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-get-tasks \
+            agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-delete-task \
+            agentic-delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-todo-ui \
+            agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
       - name: Wait for Rollouts
         run: |
-          kubectl rollout status deployment/add-task --timeout=180s
-          kubectl rollout status deployment/get-tasks --timeout=180s
-          kubectl rollout status deployment/delete-task --timeout=180s
-          kubectl rollout status deployment/todo-ui --timeout=180s
+          kubectl rollout status deployment/agentic-add-task --timeout=180s
+          kubectl rollout status deployment/agentic-get-tasks --timeout=180s
+          kubectl rollout status deployment/agentic-delete-task --timeout=180s
+          kubectl rollout status deployment/agentic-todo-ui --timeout=180s
 
       - name: Final Verification
         run: |
