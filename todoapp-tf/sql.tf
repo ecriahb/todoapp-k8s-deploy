@@ -11,7 +11,7 @@ resource "azurerm_mssql_server" "sqlserver" {
 # SQL Database
 # --------------------------
 resource "azurerm_mssql_database" "todo_db" {
-  name         = "todoapp"
+  name         = "agentsql"
   server_id    = azurerm_mssql_server.sqlserver.id
   sku_name     = "S0"
   max_size_gb  = 5
