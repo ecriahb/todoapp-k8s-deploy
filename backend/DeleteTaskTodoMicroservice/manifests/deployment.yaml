@@ -1,22 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: delete-task
+  name: agentic-delete-task
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: delete-task
+      app: agentic-delete-task
   template:
     metadata:
       labels:
-        app: delete-task
+        app: agentic-delete-task
     spec:
       containers:
-      - name: delete-task
+      - name: agentic-delete-task
         env:
           - name: CONNECTION_STRING
-            value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:agentic-devops-sql.database.windows.net,1433;Database=todoapp;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
-        image: devopsinsiders/delete-task
+            valueFrom:
+              secretKeyRef:
+                name: agentic-sql-secret
+                key: CONNECTION_STRING
+        image: agenticdevopsacr.azurecr.io/delete-tasks:latest
         ports:
         - containerPort: 8000
