@@ -2,10 +2,10 @@
 # AKS (in custom VNet)       #
 ##############################
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "todoapp-aks"
+  name                = "agentic-devops-aks"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "todoapp-aks"
+  dns_prefix          = "agentic-devops-aks"
 
   default_node_pool {
     name           = "systempool"
@@ -23,9 +23,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
 
-    # Avoid conflicts with VNet subnets
-    service_cidr      = "10.244.0.0/16"  # Must not overlap with any subnet
-    dns_service_ip    = "10.244.0.10"
+    service_cidr = "10.244.0.0/16"
+    dns_service_ip = "10.244.0.10"
   }
 
   lifecycle {
@@ -46,5 +45,3 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
     azurerm_kubernetes_cluster.aks
   ]
 }
-
-
