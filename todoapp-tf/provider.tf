@@ -3,10 +3,10 @@ terraform {
   required_version = ">= 1.1.0"
 
   backend "azurerm" {
-    resource_group_name   = "aks-rg"
-    storage_account_name  = "tfstorageinfra123"   # must be globally unique
-    container_name        = "tfstate"
-    key                   = "todoapp-demo.tfstate"
+    resource_group_name  = "agentic-tfstate-rg"
+    storage_account_name = "agenticdevopstfstate"
+    container_name       = "tfstate"
+    key                  = "agentic-devops.tfstate"
   }
 
   required_providers {
@@ -28,5 +28,3 @@ provider "azurerm" {
 }
 
 provider "random" {}
-
-
