@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: todo-ui
+  name: agentic-todo-ui
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: todo-ui
+      app: agentic-todo-ui
   template:
     metadata:
       labels:
-        app: todo-ui
+        app: agentic-todo-ui
     spec:
       containers:
-        - name: todo-ui
-          image: todoappacr2ly.azurecr.io/todo-ui:latest
+        - name: agentic-todo-ui
+          image: agenticdevopsacr.azurecr.io/todo-ui:latest
           ports:
             - containerPort: 8080
