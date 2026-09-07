@@ -2,6 +2,15 @@ name: One Click - Infra + TodoApp
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: "Terraform action"
+        required: true
+        default: apply
+        type: choice
+        options:
+          - apply
+          - destroy
 
 permissions:
   contents: read
@@ -42,22 +51,34 @@ jobs:
 
       - name: Initialize Terraform Remote Backend
         working-directory: ${{ env.TF_DIR }}
-        run: |
-          terraform init -input=false
+        run: terraform init -input=false
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_DIR }}
         run: terraform validate
 
-      - name: Terraform Plan
+      - name: Terraform Plan - Apply
+        if: ${{ inputs.action == 'apply' }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false -out=tfplan
 
       - name: Terraform Apply
+        if: ${{ inputs.action == 'apply' }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -input=false -auto-approve tfplan
 
+      - name: Terraform Plan - Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -destroy -out=tfplan-destroy
+
+      - name: Terraform Destroy
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -input=false -auto-approve tfplan-destroy
+
       - name: Get AKS Credentials
+        if: ${{ inputs.action == 'apply' }}
         run: |
           az aks get-credentials \
             --resource-group "$RESOURCE_GROUP" \
@@ -65,34 +86,41 @@ jobs:
             --overwrite-existing
 
       - name: Verify AKS
+        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl cluster-info
           kubectl get nodes
 
       - name: Login to ACR
+        if: ${{ inputs.action == 'apply' }}
         run: az acr login --name "$ACR_NAME"
 
       - name: Build and Push Add Tasks
+        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" ./backend/AddTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Get Tasks
+        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" ./backend/GetTasksTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Delete Tasks
+        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" ./backend/DeleteTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Frontend
+        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" ./frontend
           docker push "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
       - name: Apply Backend Kubernetes Manifests
+        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/deployment.yaml
           kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/service.yaml
@@ -102,11 +130,13 @@ jobs:
           kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/service.yaml
 
       - name: Apply Frontend Kubernetes Manifests
+        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl apply -f ./frontend/manifests/deployment.yaml
           kubectl apply -f ./frontend/manifests/service.yaml
 
       - name: Set Immutable Image Tags
+        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl -n default set image deployment/agentic-add-task agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-get-tasks agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
@@ -114,6 +144,7 @@ jobs:
           kubectl -n default set image deployment/agentic-todo-ui agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
       - name: Wait for Rollouts
+        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl rollout status deployment/agentic-add-task --timeout=180s
           kubectl rollout status deployment/agentic-get-tasks --timeout=180s
@@ -121,6 +152,7 @@ jobs:
           kubectl rollout status deployment/agentic-todo-ui --timeout=180s
 
       - name: Final Verification
+        if: ${{ inputs.action == 'apply' }}
         run: |
           echo '=== Deployments ==='
           kubectl get deployments -o wide
