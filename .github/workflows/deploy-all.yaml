@@ -12,10 +12,14 @@ env:
   AKS_CLUSTER: agentic-devops-aks
   ACR_NAME: agenticdevopsacr
   TF_DIR: ./todoapp-tf
+  TFSTATE_DIR: ./todoapp-tf/bootstrap
+  TFSTATE_RG: agentic-tfstate-rg
+  TFSTATE_STORAGE: agenticdevopstfstate
+  TFSTATE_CONTAINER: tfstate
 
 jobs:
   deploy:
-    name: Terraform → Build → Deploy → Verify
+    name: State → Terraform → Build → Deploy → Verify
     runs-on: ubuntu-latest
 
     steps:
@@ -30,9 +34,16 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform Init
+      - name: Bootstrap Terraform State Storage
+        working-directory: ${{ env.TFSTATE_DIR }}
+        run: |
+          terraform init -input=false
+          terraform apply -input=false -auto-approve
+
+      - name: Initialize Terraform Remote Backend
         working-directory: ${{ env.TF_DIR }}
-        run: terraform init -input=false
+        run: |
+          terraform init -input=false
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_DIR }}
@@ -63,30 +74,22 @@ jobs:
 
       - name: Build and Push Add Tasks
         run: |
-          docker build --platform linux/amd64 \
-            -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" \
-            ./backend/AddTaskTodoMicroservice
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" ./backend/AddTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Get Tasks
         run: |
-          docker build --platform linux/amd64 \
-            -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" \
-            ./backend/GetTasksTodoMicroservice
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" ./backend/GetTasksTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Delete Tasks
         run: |
-          docker build --platform linux/amd64 \
-            -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" \
-            ./backend/DeleteTaskTodoMicroservice
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" ./backend/DeleteTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Frontend
         run: |
-          docker build --platform linux/amd64 \
-            -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" \
-            ./frontend
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" ./frontend
           docker push "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
       - name: Apply Backend Kubernetes Manifests
@@ -105,14 +108,10 @@ jobs:
 
       - name: Set Immutable Image Tags
         run: |
-          kubectl -n default set image deployment/agentic-add-task \
-            agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-get-tasks \
-            agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-delete-task \
-            agentic-delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-todo-ui \
-            agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-add-task agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-get-tasks agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-delete-task agentic-delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-todo-ui agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
       - name: Wait for Rollouts
         run: |
