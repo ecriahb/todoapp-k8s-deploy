@@ -12,6 +12,8 @@ spec:
       labels:
         app: agentic-todo-ui
     spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
       containers:
         - name: agentic-todo-ui
           image: agenticdevopsacr.azurecr.io/todo-ui:latest
