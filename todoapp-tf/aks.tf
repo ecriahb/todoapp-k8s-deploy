@@ -10,10 +10,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name           = "systempool"
     node_count     = 2
-    # Use a 4-vCPU system-pool SKU from the DSv3 family.
-    # The subscription currently has 10 vCPU quota in the DS family,
-    # while DSv5 quota is 0 in eastus2.
-    vm_size        = "Standard_D4s_v3"
+    # 4 vCPU / 16 GiB system-pool SKU. This is a DAsv7-family SKU,
+    # which matches the subscription's available 10-vCPU Dasv7 quota.
+    vm_size        = "Standard_D4as_v7"
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
   }
 
@@ -30,7 +29,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
 
-    service_cidr   = "10.244.0.0/16"
+    service_cidr    = "10.244.0.0/16"
     dns_service_ip = "10.244.0.10"
   }
 
