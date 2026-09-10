@@ -110,6 +110,13 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -input=false -auto-approve tfplan-destroy
 
+      - name: Destroy Terraform State Storage
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ env.TFSTATE_DIR }}
+        run: |
+          echo "Destroying Terraform remote-state resource group and storage..."
+          terraform destroy -input=false -auto-approve
+
       - name: Get AKS Credentials
         if: ${{ inputs.action == 'apply' }}
         run: |
