@@ -12,6 +12,8 @@ spec:
       labels:
         app: agentic-add-task
     spec:
+      imagePullSecrets:
+      - name: acr-pull-secret
       containers:
       - name: agentic-add-task
         image: agenticdevopsacr.azurecr.io/add-tasks:latest
