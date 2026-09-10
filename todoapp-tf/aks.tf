@@ -14,6 +14,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
   }
 
+  node_provisioning_profile {
+    mode = "Manual"
+  }
+
   identity {
     type = "SystemAssigned"
   }
@@ -24,8 +28,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     outbound_type     = "loadBalancer"
 
     # Avoid conflicts with VNet subnets
-    service_cidr      = "10.244.0.0/16"  # Must not overlap with any subnet
-    dns_service_ip    = "10.244.0.10"
+    service_cidr   = "10.244.0.0/16"  # Must not overlap with any subnet
+    dns_service_ip = "10.244.0.10"
   }
 
   lifecycle {
@@ -46,5 +50,4 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
     azurerm_kubernetes_cluster.aks
   ]
 }
-
 
