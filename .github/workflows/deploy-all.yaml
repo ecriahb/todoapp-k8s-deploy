@@ -25,6 +25,7 @@ env:
   TFSTATE_RG: agentic-tfstate-rg
   TFSTATE_STORAGE: agenticdevopstfstate
   TFSTATE_CONTAINER: tfstate
+  ACR_PULL_SECRET: acr-pull-secret
 
 jobs:
   deploy:
@@ -126,6 +127,19 @@ jobs:
       - name: Login to ACR
         if: ${{ inputs.action == 'apply' }}
         run: az acr login --name "$ACR_NAME"
+
+      - name: Create ACR imagePullSecret
+        if: ${{ inputs.action == 'apply' }}
+        run: |
+          ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
+
+          kubectl create secret docker-registry "$ACR_PULL_SECRET" \
+            --docker-server="$ACR_NAME.azurecr.io" \
+            --docker-username="$ACR_USERNAME" \
+            --docker-password="$ACR_PASSWORD" \
+            --namespace=default \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Build and Push Add Tasks
         if: ${{ inputs.action == 'apply' }}
