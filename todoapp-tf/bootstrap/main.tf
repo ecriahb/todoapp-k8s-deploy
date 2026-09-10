@@ -16,6 +16,10 @@ provider "azurerm" {
 resource "azurerm_resource_group" "tfstate" {
   name     = "agentic-tfstate-rg"
   location = "East US"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "azurerm_storage_account" "tfstate" {
