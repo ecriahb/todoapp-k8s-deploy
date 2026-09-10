@@ -47,6 +47,38 @@ jobs:
         working-directory: ${{ env.TFSTATE_DIR }}
         run: |
           terraform init -input=false
+
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          RG_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${TFSTATE_RG}"
+          STORAGE_ID="${RG_ID}/providers/Microsoft.Storage/storageAccounts/${TFSTATE_STORAGE}"
+          CONTAINER_ID="${STORAGE_ID}/blobServices/default/containers/${TFSTATE_CONTAINER}"
+
+          echo "Checking Terraform state resources..."
+
+          if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
+            echo "Resource Group already exists: $TFSTATE_RG"
+            if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
+              echo "Importing existing Resource Group into Terraform state..."
+              terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
+            fi
+          fi
+
+          if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
+            echo "Storage Account already exists: $TFSTATE_STORAGE"
+            if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
+              echo "Importing existing Storage Account into Terraform state..."
+              terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
+            fi
+          fi
+
+          if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
+            echo "Storage Container already exists: $TFSTATE_CONTAINER"
+            if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
+              echo "Importing existing Storage Container into Terraform state..."
+              terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
+            fi
+          fi
+
           terraform apply -input=false -auto-approve
 
       - name: Initialize Terraform Remote Backend
