@@ -10,7 +10,9 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name           = "systempool"
     node_count     = 1
-    vm_size        = "Standard_B2s_v2"
+    # Let AKS dynamically select a supported VM SKU based on regional
+    # capacity and subscription quota instead of hard-coding a restricted SKU.
+    # Microsoft recommends avoiding B-series for AKS system node pools.
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
   }
 
