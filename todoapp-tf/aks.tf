@@ -14,6 +14,10 @@ resource "azurerm_kubernetes_cluster" "aks" {
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
   }
 
+  node_provisioning_profile {
+    mode = "Manual"
+  }
+
   identity {
     type = "SystemAssigned"
   }
@@ -23,7 +27,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
 
-    service_cidr = "10.244.0.0/16"
+    service_cidr   = "10.244.0.0/16"
     dns_service_ip = "10.244.0.10"
   }
 
