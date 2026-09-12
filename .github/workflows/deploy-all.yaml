@@ -28,10 +28,29 @@ env:
   ACR_PULL_SECRET: acr-pull-secret
 
 jobs:
-  deploy:
-    name: State → Terraform → Build → Deploy → Verify
-    runs-on: ubuntu-latest
 
+  # ============================================================
+  # STAGE 1 - CHECKOUT & AZURE LOGIN
+  # ============================================================
+  checkout-login:
+    name: "1️⃣ Checkout & Azure Login"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+  # ============================================================
+  # STAGE 2 - TERRAFORM STATE
+  # ============================================================
+  bootstrap-state:
+    name: "2️⃣ Bootstrap Terraform State"
+    needs: checkout-login
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -59,7 +78,6 @@ jobs:
           if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
             echo "Resource Group already exists: $TFSTATE_RG"
             if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
-              echo "Importing existing Resource Group into Terraform state..."
               terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
             fi
           fi
@@ -67,7 +85,6 @@ jobs:
           if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
             echo "Storage Account already exists: $TFSTATE_STORAGE"
             if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
-              echo "Importing existing Storage Account into Terraform state..."
               terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
             fi
           fi
@@ -75,14 +92,32 @@ jobs:
           if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
             echo "Storage Container already exists: $TFSTATE_CONTAINER"
             if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
-              echo "Importing existing Storage Container into Terraform state..."
               terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
             fi
           fi
 
           terraform apply -input=false -auto-approve
 
-      - name: Initialize Terraform Remote Backend
+  # ============================================================
+  # STAGE 3 - TERRAFORM PLAN
+  # ============================================================
+  terraform-plan:
+    name: "3️⃣ Terraform Plan"
+    needs: bootstrap-state
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
 
@@ -90,35 +125,67 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform validate
 
-      - name: Terraform Plan - Apply
+      - name: Terraform Plan
         if: ${{ inputs.action == 'apply' }}
         working-directory: ${{ env.TF_DIR }}
-        run: terraform plan -input=false -out=tfplan
+        run: terraform plan -input=false
+
+      - name: Terraform Destroy Plan
+        if: ${{ inputs.action == 'destroy' }}
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform plan -input=false -destroy
+
+  # ============================================================
+  # STAGE 4 - TERRAFORM APPLY / DESTROY
+  # ============================================================
+  terraform-deploy:
+    name: "4️⃣ Terraform Apply / Destroy"
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
 
       - name: Terraform Apply
         if: ${{ inputs.action == 'apply' }}
         working-directory: ${{ env.TF_DIR }}
-        run: terraform apply -input=false -auto-approve tfplan
-
-      - name: Terraform Plan - Destroy
-        if: ${{ inputs.action == 'destroy' }}
-        working-directory: ${{ env.TF_DIR }}
-        run: terraform plan -input=false -destroy -out=tfplan-destroy
+        run: terraform apply -input=false -auto-approve
 
       - name: Terraform Destroy
         if: ${{ inputs.action == 'destroy' }}
         working-directory: ${{ env.TF_DIR }}
-        run: terraform apply -input=false -auto-approve tfplan-destroy
+        run: terraform destroy -input=false -auto-approve
 
-      - name: Destroy Terraform State Storage
-        if: ${{ inputs.action == 'destroy' }}
-        working-directory: ${{ env.TFSTATE_DIR }}
-        run: |
-          echo "Destroying Terraform remote-state resource group and storage..."
-          terraform destroy -input=false -auto-approve
+  # ============================================================
+  # STAGE 5 - AKS CONNECT & VERIFY
+  # ============================================================
+  aks-verify:
+    name: "5️⃣ AKS Connect & Verify"
+    needs: terraform-deploy
+    if: ${{ inputs.action == 'apply' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Get AKS Credentials
-        if: ${{ inputs.action == 'apply' }}
         run: |
           az aks get-credentials \
             --resource-group "$RESOURCE_GROUP" \
@@ -126,17 +193,34 @@ jobs:
             --overwrite-existing
 
       - name: Verify AKS
-        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl cluster-info
-          kubectl get nodes
+          kubectl get nodes -o wide
+
+  # ============================================================
+  # STAGE 6 - ACR AUTHENTICATION
+  # ============================================================
+  acr-auth:
+    name: "6️⃣ ACR Login & Pull Secret"
+    needs: aks-verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
 
       - name: Login to ACR
-        if: ${{ inputs.action == 'apply' }}
         run: az acr login --name "$ACR_NAME"
 
       - name: Create ACR imagePullSecret
-        if: ${{ inputs.action == 'apply' }}
         run: |
           ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
@@ -148,32 +232,69 @@ jobs:
             --namespace=default \
             --dry-run=client -o yaml | kubectl apply -f -
 
+  # ============================================================
+  # STAGE 7 - BUILD & PUSH IMAGES
+  # ============================================================
+  build-push:
+    name: "7️⃣ Build & Push Docker Images"
+    needs: acr-auth
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
       - name: Build and Push Add Tasks
-        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" ./backend/AddTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Get Tasks
-        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" ./backend/GetTasksTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Delete Tasks
-        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" ./backend/DeleteTaskTodoMicroservice
           docker push "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
 
       - name: Build and Push Frontend
-        if: ${{ inputs.action == 'apply' }}
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" ./frontend
           docker push "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
-      - name: Apply Backend Kubernetes Manifests
-        if: ${{ inputs.action == 'apply' }}
+  # ============================================================
+  # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
+  # ============================================================
+  kubernetes-deploy:
+    name: "8️⃣ Deploy Kubernetes Manifests"
+    needs: build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
+      - name: Apply Backend Manifests
         run: |
           kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/deployment.yaml
           kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/service.yaml
@@ -182,22 +303,42 @@ jobs:
           kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/deployment.yaml
           kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/service.yaml
 
-      - name: Apply Frontend Kubernetes Manifests
-        if: ${{ inputs.action == 'apply' }}
+      - name: Apply Frontend Manifests
         run: |
           kubectl apply -f ./frontend/manifests/deployment.yaml
           kubectl apply -f ./frontend/manifests/service.yaml
 
       - name: Set Immutable Image Tags
-        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl -n default set image deployment/agentic-add-task agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-get-tasks agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-delete-task agentic-delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-todo-ui agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
+  # ============================================================
+  # STAGE 9 - ROLLOUT & FINAL VERIFICATION
+  # ============================================================
+  verify:
+    name: "9️⃣ Rollout & Final Verification"
+    needs: kubernetes-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get AKS Credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$AKS_CLUSTER" \
+            --overwrite-existing
+
       - name: Wait for Rollouts
-        if: ${{ inputs.action == 'apply' }}
         run: |
           kubectl rollout status deployment/agentic-add-task --timeout=180s
           kubectl rollout status deployment/agentic-get-tasks --timeout=180s
@@ -205,11 +346,36 @@ jobs:
           kubectl rollout status deployment/agentic-todo-ui --timeout=180s
 
       - name: Final Verification
-        if: ${{ inputs.action == 'apply' }}
         run: |
-          echo '=== Deployments ==='
+          echo "=== Deployments ==="
           kubectl get deployments -o wide
-          echo '=== Pods ==='
+          echo "=== Pods ==="
           kubectl get pods -o wide
-          echo '=== Services ==='
+          echo "=== Services ==="
           kubectl get svc -o wide
+
+  # ============================================================
+  # STAGE 10 - DESTROY STATE STORAGE
+  # ============================================================
+  destroy-state:
+    name: "🔟 Cleanup Terraform State"
+    needs: terraform-deploy
+    if: ${{ inputs.action == 'destroy' && success() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Destroy Terraform State Storage
+        working-directory: ${{ env.TFSTATE_DIR }}
+        run: |
+          terraform init -input=false
+          terraform destroy -input=false -auto-approve
