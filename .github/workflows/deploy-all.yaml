@@ -259,28 +259,33 @@ jobs:
 
       - name: Build and Push Incident Create
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}" ./backend/incidents/create
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-create:latest" ./backend/incidents/create
           docker push "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
+          docker push "$ACR_NAME.azurecr.io/incident-create:latest"
 
       - name: Build and Push Incident List
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}" ./backend/incidents/list
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-list:latest" ./backend/incidents/list
           docker push "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
+          docker push "$ACR_NAME.azurecr.io/incident-list:latest"
 
       - name: Build and Push Incident Resolve
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}" ./backend/incidents/resolve
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-resolve:latest" ./backend/incidents/resolve
           docker push "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
+          docker push "$ACR_NAME.azurecr.io/incident-resolve:latest"
 
       - name: Build and Push AI RCA
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}" ./backend/AIRCAService
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/ai-rca:latest" ./backend/AIRCAService
           docker push "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
+          docker push "$ACR_NAME.azurecr.io/ai-rca:latest"
 
       - name: Build and Push Frontend
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}" ./frontend
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/cloudops-ui:latest" ./frontend
           docker push "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
+          docker push "$ACR_NAME.azurecr.io/cloudops-ui:latest"
 
   # ============================================================
   # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
@@ -288,7 +293,7 @@ jobs:
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ always() && inputs.k8s_deploy && needs.acr-auth.result == 'success' && (!inputs.build_image || needs.build-push.result == 'success') }}
+    if: ${{ always() && inputs.k8s_deploy && needs.acr-auth.result == 'success' && (needs.build-push.result == 'success' || needs.build-push.result == 'skipped') }}
     needs: [acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
