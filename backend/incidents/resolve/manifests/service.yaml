@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: agentic-delete-task
+  name: agentic-incident-resolve
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   type: LoadBalancer
   selector:
-    app: agentic-delete-task
+    app: agentic-incident-resolve
   ports:
     - port: 80
       targetPort: 8000
