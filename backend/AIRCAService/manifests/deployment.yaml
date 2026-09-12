@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentic-ai-rca
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: agentic-ai-rca
+  template:
+    metadata:
+      labels:
+        app: agentic-ai-rca
+    spec:
+      imagePullSecrets:
+        - name: acr-pull-secret
+      containers:
+        - name: ai-rca
+          image: agenticdevopsacr.azurecr.io/ai-rca:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
