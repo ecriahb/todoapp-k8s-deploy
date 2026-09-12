@@ -42,28 +42,11 @@ env:
 jobs:
 
   # ============================================================
-  # STAGE 1 - CHECKOUT & AZURE LOGIN
+  # STAGE 1 - TERRAFORM INFRA
   # ============================================================
-  checkout-login:
-    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
-    name: "1️⃣ Checkout & Azure Login"
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-  # ============================================================
-  # STAGE 2 - TERRAFORM STATE
-  # ============================================================
-  bootstrap-state:
-    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
-    name: "2️⃣ Bootstrap Terraform State"
-    needs: checkout-login
+  terraform-infra:
+    name: "1️⃣ Terraform Infra"
+    if: ${{ inputs.terraform_infra && !inputs.tf_destroy }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -77,7 +60,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Bootstrap Terraform State Storage
+      - name: Bootstrap Terraform State
         working-directory: ${{ env.TFSTATE_DIR }}
         run: |
           terraform init -input=false
@@ -87,50 +70,25 @@ jobs:
           STORAGE_ID="${RG_ID}/providers/Microsoft.Storage/storageAccounts/${TFSTATE_STORAGE}"
           CONTAINER_ID="${STORAGE_ID}/blobServices/default/containers/${TFSTATE_CONTAINER}"
 
-          echo "Checking Terraform state resources..."
-
           if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
-            echo "Resource Group already exists: $TFSTATE_RG"
             if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
               terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
             fi
           fi
 
           if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
-            echo "Storage Account already exists: $TFSTATE_STORAGE"
             if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
               terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
             fi
           fi
 
           if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
-            echo "Storage Container already exists: $TFSTATE_CONTAINER"
             if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
               terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
             fi
           fi
 
           terraform apply -input=false -auto-approve
-
-  # ============================================================
-  # STAGE 3 - TERRAFORM PLAN
-  # ============================================================
-  terraform-plan:
-    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
-    name: "3️⃣ Terraform Plan"
-    needs: bootstrap-state
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
@@ -141,22 +99,19 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        if: ${{ inputs.terraform_infra }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false
 
-      - name: Terraform Destroy Plan
-        if: ${{ inputs.tf_destroy }}
+      - name: Terraform Apply
         working-directory: ${{ env.TF_DIR }}
-        run: terraform plan -input=false -destroy
+        run: terraform apply -input=false -auto-approve
 
   # ============================================================
-  # STAGE 4 - TERRAFORM APPLY / DESTROY
+  # STAGE 2 - TF DESTROY
   # ============================================================
-  terraform-deploy:
-    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
-    name: "4️⃣ Terraform Apply / Destroy"
-    needs: terraform-plan
+  tf-destroy:
+    name: "2️⃣ TF Destroy"
+    if: ${{ inputs.tf_destroy }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -170,80 +125,59 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Bootstrap Terraform State
+        working-directory: ${{ env.TFSTATE_DIR }}
+        run: |
+          terraform init -input=false
+
+          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+          RG_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${TFSTATE_RG}"
+          STORAGE_ID="${RG_ID}/providers/Microsoft.Storage/storageAccounts/${TFSTATE_STORAGE}"
+          CONTAINER_ID="${STORAGE_ID}/blobServices/default/containers/${TFSTATE_CONTAINER}"
+
+          if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
+            if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
+              terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
+            fi
+          fi
+
+          if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
+            if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
+              terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
+            fi
+          fi
+
+          if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
+            if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
+              terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
+            fi
+          fi
+
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
 
-      - name: Terraform Apply
-        if: ${{ inputs.terraform_infra }}
+      - name: Terraform Destroy Plan
         working-directory: ${{ env.TF_DIR }}
-        run: terraform apply -input=false -auto-approve
+        run: terraform plan -input=false -destroy
 
       - name: Terraform Destroy
-        if: ${{ inputs.tf_destroy }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform destroy -input=false -auto-approve
 
-  # ============================================================
-  # STAGE 5 - AKS CONNECT & VERIFY
-  # K8s verification is independent of Terraform when Terraform Infra is not selected.
-  # ============================================================
-  aks-verify:
-    name: "5️⃣ AKS Connect & Verify"
-    if: ${{ inputs.k8s_deploy }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Get AKS Credentials
-        run: |
-          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
-
-      - name: Verify AKS
-        run: |
-          kubectl cluster-info
-          kubectl get nodes -o wide
+      - name: Cleanup Terraform State Storage
+        working-directory: ${{ env.TFSTATE_DIR }}
+        run: terraform destroy -input=false -auto-approve
 
   # ============================================================
-  # STAGE 6 - ACR AUTHENTICATION
+  # STAGE 3 - BUILD IMAGE
+  # Runs independently when Terraform is not selected.
+  # If Terraform Infra is selected, it waits for Terraform first.
   # ============================================================
-  acr-auth:
-    name: "6️⃣ ACR Login & Pull Secret"
-    if: ${{ inputs.k8s_deploy }}
-    needs: aks-verify
-    runs-on: ubuntu-latest
-    steps:
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Get AKS Credentials
-        run: |
-          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
-
-      - name: Login to ACR
-        run: az acr login --name "$ACR_NAME"
-
-      - name: Create ACR imagePullSecret
-        run: |
-          ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
-          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
-
-          kubectl create secret docker-registry "$ACR_PULL_SECRET"             --docker-server="$ACR_NAME.azurecr.io"             --docker-username="$ACR_USERNAME"             --docker-password="$ACR_PASSWORD"             --namespace=default             --dry-run=client -o yaml | kubectl apply -f -
-
-  # ============================================================
-  # STAGE 7 - BUILD & PUSH IMAGES
-  # ============================================================
-  build-push:
-    name: "7️⃣ Build & Push Docker Images"
-    if: ${{ inputs.build_image }}
+  build-image:
+    name: "3️⃣ Build Image"
+    needs: terraform-infra
+    if: ${{ always() && inputs.build_image && !inputs.tf_destroy && (needs.terraform-infra.result == 'success' || needs.terraform-infra.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -288,13 +222,15 @@ jobs:
           docker push "$ACR_NAME.azurecr.io/cloudops-ui:latest"
 
   # ============================================================
-  # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
-  # Runs when K8s Deploy + Build Image are selected.
+  # STAGE 4 - K8S DEPLOY
+  # Includes AKS auth + ACR pull secret + manifests + rollout.
+  # This removes the old dependency chain that caused K8s Deploy
+  # to be skipped when the Build stage was selected.
   # ============================================================
-  kubernetes-deploy:
-    name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ always() && inputs.k8s_deploy && needs.acr-auth.result == 'success' && (needs.build-push.result == 'success' || needs.build-push.result == 'skipped') }}
-    needs: [acr-auth, build-push]
+  k8s-deploy:
+    name: "4️⃣ K8s Deploy"
+    needs: [terraform-infra, build-image]
+    if: ${{ always() && inputs.k8s_deploy && !inputs.tf_destroy && (needs.terraform-infra.result == 'success' || needs.terraform-infra.result == 'skipped') && (needs.build-image.result == 'success' || needs.build-image.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -308,6 +244,21 @@ jobs:
       - name: Get AKS Credentials
         run: |
           az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
+
+      - name: Verify AKS
+        run: |
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      - name: Login to ACR
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Create / Update ACR imagePullSecret
+        run: |
+          ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
+
+          kubectl create secret docker-registry "$ACR_PULL_SECRET"             --docker-server="$ACR_NAME.azurecr.io"             --docker-username="$ACR_USERNAME"             --docker-password="$ACR_PASSWORD"             --namespace=default             --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply Backend Manifests
         run: |
@@ -333,28 +284,6 @@ jobs:
           kubectl -n default set image deployment/ai-rca ai-rca="$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-cloudops-ui agentic-cloudops-ui="$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
 
-  # ============================================================
-  # STAGE 9 - ROLLOUT & FINAL VERIFICATION
-  # BUILD ALSO RUNS THIS STAGE.
-  # ============================================================
-  verify:
-    name: "9️⃣ Rollout & Final Verification"
-    if: ${{ always() && inputs.k8s_deploy && needs.kubernetes-deploy.result == 'success' }}
-    needs: kubernetes-deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Get AKS Credentials
-        run: |
-          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
-
       - name: Wait for Rollouts
         run: |
           kubectl rollout status deployment/agentic-incident-create --timeout=180s
@@ -371,29 +300,3 @@ jobs:
           kubectl get pods -o wide
           echo "=== Services ==="
           kubectl get svc -o wide
-
-  # ============================================================
-  # STAGE 10 - DESTROY STATE STORAGE
-  # ============================================================
-  destroy-state:
-    name: "🔟 Cleanup Terraform State"
-    needs: terraform-deploy
-    if: ${{ inputs.tf_destroy && success() }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-
-      - name: Destroy Terraform State Storage
-        working-directory: ${{ env.TFSTATE_DIR }}
-        run: |
-          terraform init -input=false
-          terraform destroy -input=false -auto-approve
