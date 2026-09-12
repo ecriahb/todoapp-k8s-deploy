@@ -251,17 +251,17 @@ jobs:
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
 
-      - name: Build and Push Add Tasks
+      - name: Build and Push Incident Create
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}" ./backend/incidents/create
           docker push "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
 
-      - name: Build and Push Get Tasks
+      - name: Build and Push Incident List
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}" ./backend/incidents/list
           docker push "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
 
-      - name: Build and Push Delete Tasks
+      - name: Build and Push Incident Resolve
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}" ./backend/incidents/resolve
           docker push "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
