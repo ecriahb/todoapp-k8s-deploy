@@ -179,8 +179,8 @@ jobs:
   # ============================================================
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
-    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
     needs: [terraform-deploy]
+    if: ${{ always() && (inputs.action == 'build' || (inputs.action == 'deploy' && needs.terraform-deploy.result == 'success')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
