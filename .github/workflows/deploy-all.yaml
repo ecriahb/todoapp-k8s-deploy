@@ -273,8 +273,8 @@ jobs:
 
       - name: Build and Push Frontend
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}" ./frontend
-          docker push "$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}" ./frontend
+          docker push "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
 
   # ============================================================
   # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
@@ -320,7 +320,7 @@ jobs:
           kubectl -n default set image deployment/agentic-incident-list agentic-incident-list="$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-incident-resolve agentic-incident-resolve="$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
           kubectl -n default set image deployment/ai-rca ai-rca="$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-todo-ui agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-cloudops-ui agentic-cloudops-ui="$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
 
   # ============================================================
   # STAGE 9 - ROLLOUT & FINAL VERIFICATION
@@ -351,7 +351,7 @@ jobs:
           kubectl rollout status deployment/agentic-incident-list --timeout=180s
           kubectl rollout status deployment/agentic-incident-resolve --timeout=180s
           kubectl rollout status deployment/ai-rca --timeout=180s
-          kubectl rollout status deployment/agentic-todo-ui --timeout=180s
+          kubectl rollout status deployment/agentic-cloudops-ui --timeout=180s
 
       - name: Final Verification
         run: |
