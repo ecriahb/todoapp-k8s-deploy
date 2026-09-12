@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: agentic-get-tasks
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: agentic-get-tasks
@@ -13,12 +13,15 @@ spec:
         app: agentic-get-tasks
     spec:
       imagePullSecrets:
-      - name: acr-pull-secret
+        - name: acr-pull-secret
       containers:
-      - name: agentic-get-tasks
-        env:
-          - name: CONNECTION_STRING
-            value: "Driver={ODBC Driver 17 for SQL Server};Server=tcp:agentic-devops-sql.database.windows.net,1433;Database=todoapp;Uid=CloudSAc3c3e95d;Pwd=password@123;Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
-        image: agenticdevopsacr.azurecr.io/get-tasks:latest
-        ports:
-        - containerPort: 8000
+        - name: agentic-get-tasks
+          image: agenticdevopsacr.azurecr.io/get-tasks:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: agentic-sql-secret
+                  key: CONNECTION_STRING
