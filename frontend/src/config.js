@@ -1,10 +1,9 @@
-// src/config.js
-
+// Runtime API routes are exposed through the frontend nginx reverse proxy.
+// This keeps backend services private inside the AKS cluster.
 const config = {
-    GET_TASKS_API_BASE_URL: process.env.REACT_APP_GET_TASKS_API_BASE_URL || 'http://default-get-tasks-url',
-    DELETE_TASK_API_BASE_URL: process.env.REACT_APP_DELETE_TASK_API_BASE_URL || 'http://default-delete-task-url',
-    CREATE_TASK_API_BASE_URL: process.env.REACT_APP_CREATE_TASK_API_BASE_URL || 'http://default-create-task-url',
-  };
-  
-  export default config;
-  
+  GET_TASKS_API_BASE_URL: process.env.REACT_APP_GET_TASKS_API_BASE_URL || '/api/incidents/list',
+  DELETE_TASK_API_BASE_URL: process.env.REACT_APP_DELETE_TASK_API_BASE_URL || '/api/incidents/resolve',
+  CREATE_TASK_API_BASE_URL: process.env.REACT_APP_CREATE_TASK_API_BASE_URL || '/api/incidents/create',
+};
+
+export default config;
