@@ -190,8 +190,7 @@ jobs:
   # ============================================================
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
-    needs: [terraform-deploy]
-    if: ${{ inputs.k8s_deploy && inputs.build_image }}
+    if: ${{ inputs.k8s_deploy }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -216,7 +215,7 @@ jobs:
   # ============================================================
   acr-auth:
     name: "6️⃣ ACR Login & Pull Secret"
-    if: ${{ inputs.k8s_deploy && inputs.build_image }}
+    if: ${{ inputs.k8s_deploy }}
     needs: aks-verify
     runs-on: ubuntu-latest
     steps:
@@ -289,7 +288,7 @@ jobs:
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ always() && inputs.k8s_deploy && inputs.build_image }}
+    if: ${{ always() && inputs.k8s_deploy && needs.acr-auth.result == 'success' && (!inputs.build_image || needs.build-push.result == 'success') }}
     needs: [acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
@@ -321,6 +320,7 @@ jobs:
           kubectl apply -f ./frontend/manifests/service.yaml
 
       - name: Set Immutable Image Tags
+        if: ${{ inputs.build_image }}
         run: |
           kubectl -n default set image deployment/agentic-incident-create agentic-incident-create="$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-incident-list agentic-incident-list="$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
@@ -334,7 +334,7 @@ jobs:
   # ============================================================
   verify:
     name: "9️⃣ Rollout & Final Verification"
-    if: ${{ always() && inputs.k8s_deploy && inputs.build_image }}
+    if: ${{ always() && inputs.k8s_deploy && needs.kubernetes-deploy.result == 'success' }}
     needs: kubernetes-deploy
     runs-on: ubuntu-latest
     steps:
