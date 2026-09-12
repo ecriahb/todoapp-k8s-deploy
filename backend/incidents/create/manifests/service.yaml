@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: agentic-add-task
+  name: agentic-incident-create
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   type: LoadBalancer
   selector:
-    app: agentic-add-task
+    app: agentic-incident-create
   ports:
     - port: 80
       targetPort: 8000
