@@ -1,5 +1,5 @@
 # Use the official Python image as the base image
-FROM python:3.9-slim-bullseye
+FROM python:3.9-slim-bookworm
 
 # Set the working directory in the container
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # Install dependencies needed to add Microsoft repo and ODBC driver
-RUN apt-get update && apt-get install -y \
+RUN apt-get -o Acquire::Check-Valid-Until=false update && apt-get install -y \
     curl \
     gnupg \
     ca-certificates \
