@@ -4,63 +4,42 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-# Fetch the connection string from the environment variable
 connection_string = os.environ.get('CONNECTION_STRING')
-
-# Check if the connection string is available
-if connection_string:
-    print(f"Connection String: {connection_string}")
-else:
-    print("Connection string not found in environment variables.")
-    
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
-# Configure CORSMiddleware to allow all origins (disable CORS for development)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # This allows all origins (use '*' for development only)
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-# Define the Task model
-class Task(BaseModel):
+class Incident(BaseModel):
     title: str
     description: str
+    severity: str = "MEDIUM"
+    service: str = "AKS"
+    environment: str = "production"
 
-# Create a table for tasks (You can run this once outside of the app)
 @app.get("/")
-def create_tasks_table():
-    try:
-        conn = pyodbc.connect(connection_string)
+def ready():
+    return "Create-Incident API Ready."
+
+@app.post("/tasks")
+def create_incident(incident: Incident):
+    with pyodbc.connect(connection_string) as conn:
         cursor = conn.cursor()
         cursor.execute("""
+            IF OBJECT_ID('Tasks', 'U') IS NULL
             CREATE TABLE Tasks (
                 ID int NOT NULL PRIMARY KEY IDENTITY,
                 Title varchar(255),
-                Description text
-            );
+                Description text,
+                Severity varchar(20) DEFAULT 'MEDIUM',
+                Service varchar(100) DEFAULT 'AKS',
+                Environment varchar(50) DEFAULT 'production'
+            )
         """)
-        conn.commit()  
-        return "Add-Tasks API Ready."      
-    except Exception as e:
-        print(e)
-        if "There is already an object named 'Tasks' in the database." in str(e):
-            return "Add-Tasks API Ready."
-        else:
-            return "Error. Please check Logs."
-    
-
-# Create a new task
-@app.post("/tasks")
-def create_task(task: Task):
-    with pyodbc.connect(connection_string) as conn:
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Tasks (Title, Description) VALUES (?, ?)", task.title, task.description)
+        cursor.execute("""INSERT INTO Tasks (Title, Description, Severity, Service, Environment)
+                          VALUES (?, ?, ?, ?, ?)""",
+                       incident.title, incident.description, incident.severity,
+                       incident.service, incident.environment)
         conn.commit()
-    return task
+    return incident
 
 if __name__ == "__main__":
-    create_tasks_table()
+    ready()
