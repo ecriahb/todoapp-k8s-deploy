@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: agentic-todo-ui
+  name: agentic-cloudops-ui
 spec:
   type: LoadBalancer
   selector:
-    app: agentic-todo-ui
+    app: agentic-cloudops-ui
   ports:
     - port: 80
       targetPort: 80
