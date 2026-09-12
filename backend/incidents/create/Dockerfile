@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.9-slim-bullseye-bullseye
 
 # Set working directory
 WORKDIR /app
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
 
 # Add Microsoft SQL Server repository
-RUN curl -sSL https://packages.microsoft.com/config/debian/10/prod.list -o /etc/apt/sources.list.d/mssql-release.list
+RUN curl -sSL https://packages.microsoft.com/config/debian/11/prod.list -o /etc/apt/sources.list.d/mssql-release.list
 
 # Install msodbcsql17
 RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17
