@@ -175,11 +175,12 @@ jobs:
 
   # ============================================================
   # STAGE 5 - AKS CONNECT & VERIFY
+  # IMPORTANT: BUILD ALSO DEPLOYS TO EXISTING AKS.
   # ============================================================
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
-    needs: terraform-deploy
-    if: ${{ inputs.action == 'deploy' }}
+    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
+    needs: [terraform-deploy]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -192,10 +193,7 @@ jobs:
 
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$AKS_CLUSTER" \
-            --overwrite-existing
+          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
 
       - name: Verify AKS
         run: |
@@ -207,7 +205,7 @@ jobs:
   # ============================================================
   acr-auth:
     name: "6️⃣ ACR Login & Pull Secret"
-    if: ${{ inputs.action == 'deploy' }}
+    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
     needs: aks-verify
     runs-on: ubuntu-latest
     steps:
@@ -218,10 +216,7 @@ jobs:
 
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$AKS_CLUSTER" \
-            --overwrite-existing
+          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
 
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
@@ -231,12 +226,7 @@ jobs:
           ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
 
-          kubectl create secret docker-registry "$ACR_PULL_SECRET" \
-            --docker-server="$ACR_NAME.azurecr.io" \
-            --docker-username="$ACR_USERNAME" \
-            --docker-password="$ACR_PASSWORD" \
-            --namespace=default \
-            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret docker-registry "$ACR_PULL_SECRET"             --docker-server="$ACR_NAME.azurecr.io"             --docker-username="$ACR_USERNAME"             --docker-password="$ACR_PASSWORD"             --namespace=default             --dry-run=client -o yaml | kubectl apply -f -
 
   # ============================================================
   # STAGE 7 - BUILD & PUSH IMAGES
@@ -284,11 +274,12 @@ jobs:
 
   # ============================================================
   # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
+  # BUILD ALSO RUNS THIS STAGE.
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ inputs.action == 'deploy' }}
-    needs: [terraform-deploy, acr-auth, build-push]
+    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
+    needs: [acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -301,10 +292,7 @@ jobs:
 
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$AKS_CLUSTER" \
-            --overwrite-existing
+          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
 
       - name: Apply Backend Manifests
         run: |
@@ -331,10 +319,11 @@ jobs:
 
   # ============================================================
   # STAGE 9 - ROLLOUT & FINAL VERIFICATION
+  # BUILD ALSO RUNS THIS STAGE.
   # ============================================================
   verify:
     name: "9️⃣ Rollout & Final Verification"
-    if: ${{ inputs.action == 'deploy' }}
+    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
     needs: kubernetes-deploy
     runs-on: ubuntu-latest
     steps:
@@ -348,10 +337,7 @@ jobs:
 
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$AKS_CLUSTER" \
-            --overwrite-existing
+          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
 
       - name: Wait for Rollouts
         run: |
