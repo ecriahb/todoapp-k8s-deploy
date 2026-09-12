@@ -250,6 +250,22 @@ jobs:
           kubectl cluster-info
           kubectl get nodes -o wide
 
+      - name: Terraform Init for SQL Outputs
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -input=false
+
+      - name: Create / Update SQL Connection Secret
+        working-directory: ${{ env.TF_DIR }}
+        shell: bash
+        run: |
+          SQL_CONNECTION_STRING="$(terraform output -raw sql_connection_string)"
+          test -n "$SQL_CONNECTION_STRING"
+          kubectl create secret generic agentic-sql-secret \
+            --from-literal=CONNECTION_STRING="$SQL_CONNECTION_STRING" \
+            --namespace=default \
+            --dry-run=client -o yaml | kubectl apply -f -
+          echo "agentic-sql-secret is ready"
+
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
 
