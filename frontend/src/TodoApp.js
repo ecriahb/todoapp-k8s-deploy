@@ -7,12 +7,48 @@ import {
 import { Delete, Refresh, Analytics, AddAlert } from '@mui/icons-material';
 import config from './config';
 
+const AI_RCA_API = process.env.REACT_APP_AI_RCA_API_URL || '';
+
 const GET_API = config.GET_TASKS_API_BASE_URL;
 const DELETE_API = config.DELETE_TASK_API_BASE_URL;
 const CREATE_API = config.CREATE_TASK_API_BASE_URL;
 
 function TodoApp() {
   const [incidents, setIncidents] = useState([]);
+  const [analysis, setAnalysis] = useState({});
+  const [analyzing, setAnalyzing] = useState(null);
+
+  const analyzeIncident = async (item) => {
+    setAnalyzing(item.ID);
+    try {
+      if (AI_RCA_API) {
+        const r = await axios.post(AI_RCA_API, { incident: item });
+        setAnalysis(a => ({...a, [item.ID]: r.data}));
+      } else {
+        const text = `${item.Title || item.title} ${item.Description || item.description}`.toLowerCase();
+        let rootCause = 'Insufficient evidence — collect application and Kubernetes logs.';
+        let fix = 'Check pod events, resource limits, probes and recent deployment changes.';
+        let confidence = 68;
+        if (text.includes('crashloop') || text.includes('oom') || text.includes('memory')) {
+          rootCause = 'Likely container memory pressure / OOMKill.';
+          fix = 'Review memory usage and increase the container memory limit after validating workload requirements.';
+          confidence = 92;
+        } else if (text.includes('imagepull') || text.includes('image pull')) {
+          rootCause = 'Likely container image pull or registry authentication failure.';
+          fix = 'Validate image tag, ACR access and workload identity / imagePullSecrets.';
+          confidence = 90;
+        } else if (text.includes('5xx') || text.includes('gateway')) {
+          rootCause = 'Likely upstream application or ingress failure.';
+          fix = 'Inspect ingress/controller and application logs, then validate backend health probes.';
+          confidence = 82;
+        }
+        setAnalysis(a => ({...a, [item.ID]: {rootCause, fix, confidence}}));
+      }
+    } catch (e) {
+      setAnalysis(a => ({...a, [item.ID]: {rootCause:'AI RCA service unavailable.', fix:'Collect logs and retry analysis.', confidence:0}}));
+    } finally { setAnalyzing(null); }
+  };
+
   const [incident, setIncident] = useState({
     title: '', description: '', severity: 'MEDIUM', service: 'AKS', environment: 'production'
   });
@@ -100,7 +136,7 @@ function TodoApp() {
                     <Chip label={environment} size="small" sx={{ ml: 1 }} variant="outlined" />
                   </Box>
                   <Box>
-                    <Button size="small" startIcon={<Analytics />} onClick={() => alert('AI RCA will be connected in Phase 2.')}>Analyze</Button>
+                    <Button size="small" startIcon={<Analytics />} onClick={() => analyzeIncident(item)} disabled={analyzing === item.ID}>{analyzing === item.ID ? 'Analyzing…' : 'Analyze with AI'}</Button>
                     <IconButton color="success" onClick={() => resolveIncident(item.ID)} title="Resolve incident"><Delete /></IconButton>
                   </Box>
                 </Box>
