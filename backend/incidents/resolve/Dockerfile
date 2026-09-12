@@ -5,15 +5,22 @@ COPY . .
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install prerequisites, add Microsoft signing key without apt-key, add MS repo and install ODBC driver
+# Install prerequisites from Debian 12 (Bookworm)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-    curl ca-certificates gnupg unixodbc unixodbc-dev lsb-release \
- && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/trusted.gpg.d/microsoft.gpg \
- && curl -fsSL https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list \
- && apt-get update \
- && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 \
- && apt-get clean \
+    curl ca-certificates gnupg \
+ && rm -rf /var/lib/apt/lists/*
+
+# Configure Microsoft repository for Debian 12.
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+    > /etc/apt/sources.list.d/mssql-release.list
+
+# Install Microsoft ODBC Driver 17 and UnixODBC from compatible repositories.
+RUN apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+    msodbcsql17 unixodbc unixodbc-dev \
  && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir -r requirements.txt
