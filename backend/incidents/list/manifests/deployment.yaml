@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agentic-get-tasks
+  name: agentic-incident-list
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: agentic-get-tasks
+      app: agentic-incident-list
   template:
     metadata:
       labels:
-        app: agentic-get-tasks
+        app: agentic-incident-list
     spec:
       imagePullSecrets:
         - name: acr-pull-secret
       containers:
-        - name: agentic-get-tasks
-          image: agenticdevopsacr.azurecr.io/get-tasks:latest
+        - name: agentic-incident-list
+          image: agenticdevopsacr.azurecr.io/incident-list:latest
           ports:
             - containerPort: 8000
           env:
