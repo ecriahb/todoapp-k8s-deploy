@@ -4,7 +4,7 @@ import { Button, TextField, Container, Typography, Grid, Card, CardContent, Icon
 import { Delete, Refresh, Analytics, AddAlert } from '@mui/icons-material';
 import config from './config';
 
-const AI_RCA_API = process.env.REACT_APP_AI_RCA_API_URL || '';
+const AI_RCA_API = process.env.REACT_APP_AI_RCA_API_URL || '/ai-rca/analyze';
 const GET_API = config.GET_TASKS_API_BASE_URL;
 const DELETE_API = config.DELETE_TASK_API_BASE_URL;
 const CREATE_API = config.CREATE_TASK_API_BASE_URL;
