@@ -27,9 +27,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     network_plugin    = "azure"
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
-
-    service_cidr   = "10.244.0.0/16"
-    dns_service_ip = "10.244.0.10"
+    service_cidr      = "10.244.0.0/16"
+    dns_service_ip    = "10.244.0.10"
   }
 
   lifecycle {
@@ -39,6 +38,4 @@ resource "azurerm_kubernetes_cluster" "aks" {
   depends_on = [azurerm_subnet.aks_subnet]
 }
 
-# ACR authentication is handled by the deployment workflow because the
-# CI service principal does not have Microsoft.Authorization/roleAssignments/write.
-# This avoids a Terraform role-assignment failure for AcrPull.
+# ACR authentication is handled by the deployment workflow.
