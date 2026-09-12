@@ -1,18 +1,18 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: get-tasks-ingress
+  name: incident-list-ingress
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway
 spec:
   rules:
-  - host: get-tasks.devopsinsiders.online
+  - host: incident-list.devopsinsiders.online
     http:
       paths:
       - pathType: Prefix
         path: "/"
         backend:
           service:
-            name: get-tasks
+            name: agentic-incident-list
             port: 
               number: 80
