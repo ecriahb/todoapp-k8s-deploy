@@ -1,13 +1,14 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0b1220; }
+button { text-transform: none !important; }
+.cloudops { min-height: 100vh; color: #e6edf7; background: radial-gradient(circle at top right, #183b63 0, #0b1220 45%, #070b13 100%); }
+.hero { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:28px; border-radius:18px; background:rgba(20,32,52,.9); border:1px solid rgba(255,255,255,.08); }
+.hero h3, .hero p { color:#fff; }
+.stat, .panel, .incident { background:rgba(18,29,47,.94) !important; color:#e6edf7 !important; border:1px solid rgba(255,255,255,.08); border-radius:16px !important; }
+.stat .MuiTypography-root, .panel .MuiTypography-root, .incident .MuiTypography-root { color:#e6edf7; }
+.MuiInputBase-root, .MuiInputLabel-root { color:#b9c7da !important; }
+.MuiOutlinedInput-notchedOutline { border-color:#50617a !important; }
+.incident { margin-bottom:14px; }
+.severity.high, .severity.critical { background:#8b1e2d !important; color:#fff !important; }
+.severity.medium { background:#8a5a16 !important; color:#fff !important; }
+.severity.low { background:#1f6f4a !important; color:#fff !important; }
