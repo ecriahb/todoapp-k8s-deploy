@@ -12,6 +12,11 @@ on:
           - build
           - deploy
           - destroy
+      k8s_deploy:
+        description: "Deploy application to AKS after image build"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -180,7 +185,7 @@ jobs:
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
     needs: [terraform-deploy]
-    if: ${{ always() && (inputs.action == 'build' || (inputs.action == 'deploy' && needs.terraform-deploy.result == 'success')) }}
+    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || (inputs.action == 'deploy' && needs.terraform-deploy.result == 'success')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -205,7 +210,7 @@ jobs:
   # ============================================================
   acr-auth:
     name: "6️⃣ ACR Login & Pull Secret"
-    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
+    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || inputs.action == 'deploy') }}
     needs: aks-verify
     runs-on: ubuntu-latest
     steps:
@@ -278,7 +283,7 @@ jobs:
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
+    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || inputs.action == 'deploy') }}
     needs: [acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
@@ -323,7 +328,7 @@ jobs:
   # ============================================================
   verify:
     name: "9️⃣ Rollout & Final Verification"
-    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
+    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || inputs.action == 'deploy') }}
     needs: kubernetes-deploy
     runs-on: ubuntu-latest
     steps:
