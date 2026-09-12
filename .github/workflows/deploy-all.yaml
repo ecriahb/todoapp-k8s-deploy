@@ -4,12 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Terraform action"
+        description: "Pipeline action"
         required: true
-        default: apply
+        default: build
         type: choice
         options:
-          - apply
+          - build
+          - deploy
           - destroy
 
 permissions:
@@ -33,6 +34,7 @@ jobs:
   # STAGE 1 - CHECKOUT & AZURE LOGIN
   # ============================================================
   checkout-login:
+    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
     name: "1️⃣ Checkout & Azure Login"
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +50,7 @@ jobs:
   # STAGE 2 - TERRAFORM STATE
   # ============================================================
   bootstrap-state:
+    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
     name: "2️⃣ Bootstrap Terraform State"
     needs: checkout-login
     runs-on: ubuntu-latest
@@ -102,6 +105,7 @@ jobs:
   # STAGE 3 - TERRAFORM PLAN
   # ============================================================
   terraform-plan:
+    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
     name: "3️⃣ Terraform Plan"
     needs: bootstrap-state
     runs-on: ubuntu-latest
@@ -126,7 +130,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        if: ${{ inputs.action == 'apply' }}
+        if: ${{ inputs.action == 'deploy' }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false
 
@@ -139,6 +143,7 @@ jobs:
   # STAGE 4 - TERRAFORM APPLY / DESTROY
   # ============================================================
   terraform-deploy:
+    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
     name: "4️⃣ Terraform Apply / Destroy"
     needs: terraform-plan
     runs-on: ubuntu-latest
@@ -159,7 +164,7 @@ jobs:
         run: terraform init -input=false
 
       - name: Terraform Apply
-        if: ${{ inputs.action == 'apply' }}
+        if: ${{ inputs.action == 'deploy' }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -input=false -auto-approve
 
@@ -174,7 +179,7 @@ jobs:
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
     needs: terraform-deploy
-    if: ${{ inputs.action == 'apply' }}
+    if: ${{ inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -202,6 +207,7 @@ jobs:
   # ============================================================
   acr-auth:
     name: "6️⃣ ACR Login & Pull Secret"
+    if: ${{ inputs.action == 'deploy' }}
     needs: aks-verify
     runs-on: ubuntu-latest
     steps:
@@ -237,7 +243,7 @@ jobs:
   # ============================================================
   build-push:
     name: "7️⃣ Build & Push Docker Images"
-    needs: acr-auth
+    if: ${{ inputs.action == 'build' || inputs.action == 'deploy' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -281,7 +287,8 @@ jobs:
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    needs: build-push
+    if: ${{ inputs.action == 'deploy' }}
+    needs: [terraform-deploy, acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -327,6 +334,7 @@ jobs:
   # ============================================================
   verify:
     name: "9️⃣ Rollout & Final Verification"
+    if: ${{ inputs.action == 'deploy' }}
     needs: kubernetes-deploy
     runs-on: ubuntu-latest
     steps:
