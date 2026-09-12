@@ -1,5 +1,5 @@
 # Use the official Python image as the base image
-FROM python:3.9
+FROM python:3.9-slim-bullseye-bullseye
 
 # Set the working directory in the container
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc \
     | tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
 
 # Add Microsoft SQL Server repository
-RUN curl -sSL https://packages.microsoft.com/config/debian/10/prod.list \
+RUN curl -sSL https://packages.microsoft.com/config/debian/11/prod.list \
     -o /etc/apt/sources.list.d/mssql-release.list
 
 # Install msodbcsql17
