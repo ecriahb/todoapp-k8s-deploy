@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agentic-delete-task
+  name: agentic-incident-resolve
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: agentic-delete-task
+      app: agentic-incident-resolve
   template:
     metadata:
       labels:
-        app: agentic-delete-task
+        app: agentic-incident-resolve
     spec:
       imagePullSecrets:
         - name: acr-pull-secret
       containers:
-        - name: agentic-delete-task
-          image: agenticdevopsacr.azurecr.io/delete-tasks:latest
+        - name: agentic-incident-resolve
+          image: agenticdevopsacr.azurecr.io/incident-resolve:latest
           ports:
             - containerPort: 8000
           env:
