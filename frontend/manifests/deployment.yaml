@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: agentic-todo-ui
+  name: agentic-cloudops-ui
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: agentic-todo-ui
+      app: agentic-cloudops-ui
   template:
     metadata:
       labels:
-        app: agentic-todo-ui
+        app: agentic-cloudops-ui
     spec:
       imagePullSecrets:
         - name: acr-pull-secret
       containers:
-        - name: agentic-todo-ui
-          image: agenticdevopsacr.azurecr.io/todo-ui:latest
+        - name: agentic-cloudops-ui
+          image: agenticdevopsacr.azurecr.io/cloudops-ui:latest
           ports:
             - containerPort: 80
           readinessProbe:
