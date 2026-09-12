@@ -1,4 +1,4 @@
-name: Depoly - Infra + TodoApp
+name: Deploy - CloudOps Dashboard
 
 on:
   workflow_dispatch:
@@ -20,8 +20,8 @@ env:
   RESOURCE_GROUP: agentic-devops-rg
   AKS_CLUSTER: agentic-devops-aks
   ACR_NAME: agenticdevopsacr
-  TF_DIR: ./todoapp-tf
-  TFSTATE_DIR: ./todoapp-tf/bootstrap
+  TF_DIR: ./cloudops-tf
+  TFSTATE_DIR: ./cloudops-tf/bootstrap
   TFSTATE_RG: agentic-tfstate-rg
   TFSTATE_STORAGE: agenticdevopstfstate
   TFSTATE_CONTAINER: tfstate
