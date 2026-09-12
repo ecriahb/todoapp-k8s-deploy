@@ -253,18 +253,23 @@ jobs:
 
       - name: Build and Push Add Tasks
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}" ./backend/AddTaskTodoMicroservice
-          docker push "$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}" ./backend/incidents/create
+          docker push "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
 
       - name: Build and Push Get Tasks
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}" ./backend/GetTasksTodoMicroservice
-          docker push "$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}" ./backend/incidents/list
+          docker push "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
 
       - name: Build and Push Delete Tasks
         run: |
-          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}" ./backend/DeleteTaskTodoMicroservice
-          docker push "$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}" ./backend/incidents/resolve
+          docker push "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
+
+      - name: Build and Push AI RCA
+        run: |
+          docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}" ./backend/AIRCAService
+          docker push "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
 
       - name: Build and Push Frontend
         run: |
@@ -296,12 +301,13 @@ jobs:
 
       - name: Apply Backend Manifests
         run: |
-          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/deployment.yaml
-          kubectl apply -f ./backend/AddTaskTodoMicroservice/manifests/service.yaml
-          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/deployment.yaml
-          kubectl apply -f ./backend/GetTasksTodoMicroservice/manifests/service.yaml
-          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/deployment.yaml
-          kubectl apply -f ./backend/DeleteTaskTodoMicroservice/manifests/service.yaml
+          kubectl apply -f ./backend/incidents/create/manifests/deployment.yaml
+          kubectl apply -f ./backend/incidents/create/manifests/service.yaml
+          kubectl apply -f ./backend/incidents/list/manifests/deployment.yaml
+          kubectl apply -f ./backend/incidents/list/manifests/service.yaml
+          kubectl apply -f ./backend/incidents/resolve/manifests/deployment.yaml
+          kubectl apply -f ./backend/incidents/resolve/manifests/service.yaml
+          kubectl apply -f ./backend/AIRCAService/manifests/ai-rca.yaml
 
       - name: Apply Frontend Manifests
         run: |
@@ -310,9 +316,10 @@ jobs:
 
       - name: Set Immutable Image Tags
         run: |
-          kubectl -n default set image deployment/agentic-add-task agentic-add-task="$ACR_NAME.azurecr.io/add-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-get-tasks agentic-get-tasks="$ACR_NAME.azurecr.io/get-tasks:${GITHUB_SHA}"
-          kubectl -n default set image deployment/agentic-delete-task agentic-delete-task="$ACR_NAME.azurecr.io/delete-tasks:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-incident-create agentic-incident-create="$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-incident-list agentic-incident-list="$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
+          kubectl -n default set image deployment/agentic-incident-resolve agentic-incident-resolve="$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
+          kubectl -n default set image deployment/ai-rca ai-rca="$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-todo-ui agentic-todo-ui="$ACR_NAME.azurecr.io/todo-ui:${GITHUB_SHA}"
 
   # ============================================================
@@ -340,9 +347,10 @@ jobs:
 
       - name: Wait for Rollouts
         run: |
-          kubectl rollout status deployment/agentic-add-task --timeout=180s
-          kubectl rollout status deployment/agentic-get-tasks --timeout=180s
-          kubectl rollout status deployment/agentic-delete-task --timeout=180s
+          kubectl rollout status deployment/agentic-incident-create --timeout=180s
+          kubectl rollout status deployment/agentic-incident-list --timeout=180s
+          kubectl rollout status deployment/agentic-incident-resolve --timeout=180s
+          kubectl rollout status deployment/ai-rca --timeout=180s
           kubectl rollout status deployment/agentic-todo-ui --timeout=180s
 
       - name: Final Verification
