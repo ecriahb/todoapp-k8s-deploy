@@ -12,9 +12,9 @@ Frontend
 Kubernetes / Ingress
  ↓
 Backend Microservices
- ├─ Add Task
- ├─ Get Tasks
- └─ Delete Task
+ ├─ Create Incident
+ ├─ List Incidents
+ └─ Resolve Incident
 ```
 
 The repository contains separate backend services for Todo operations, Kubernetes manifests for workloads/services, Dockerfiles, frontend code, and GitHub Actions workflows.
@@ -26,9 +26,9 @@ The repository contains separate backend services for Todo operations, Kubernete
     CI/CD workflows
 
 backend/
-    AddTaskTodoMicroservice/
-    GetTasksTodoMicroservice/
-    DeleteTaskTodoMicroservice/
+    incidents/create/
+    incidents/list/
+    incidents/resolve/
 
 frontend/
     UI application and container configuration
@@ -68,9 +68,9 @@ kubectl get nodes
 Each backend service contains its own manifests. Typical flow:
 
 ```bash
-kubectl apply -f backend/AddTaskTodoMicroservice/manifests/
-kubectl apply -f backend/GetTasksTodoMicroservice/manifests/
-kubectl apply -f backend/DeleteTaskTodoMicroservice/manifests/
+kubectl apply -f backend/incidents/create/manifests/
+kubectl apply -f backend/incidents/list/manifests/
+kubectl apply -f backend/incidents/resolve/manifests/
 ```
 
 Then verify:
@@ -118,4 +118,4 @@ Before treating this as a production deployment, add or validate:
 
 ## Purpose
 
-This repository demonstrates an end-to-end DevOps learning project: application code → Docker → CI/CD → Kubernetes deployment using independently deployable frontend and Todo backend services.
+This repository demonstrates an end-to-end DevOps learning project: application code → Docker → CI/CD → Kubernetes deployment using independently deployable frontend and incident management backend services.
