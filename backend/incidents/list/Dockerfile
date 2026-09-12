@@ -1,36 +1,28 @@
-# Use the official Python image as the base image
 FROM python:3.9-slim-bookworm
 
-# Set the working directory in the container
 WORKDIR /app
-
-# Copy the application files into the container
 COPY . .
 
-# Install dependencies needed to add Microsoft repo and ODBC driver
-RUN apt-get -o Acquire::Check-Valid-Until=false update && apt-get install -y \
-    curl \
-    gnupg \
-    ca-certificates \
-    unixodbc \
-    unixodbc-dev && \
-    rm -rf /var/lib/apt/lists/*
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Add Microsoft GPG key (use gpg --dearmor; apt-key is deprecated/absent)
-RUN curl -sSL https://packages.microsoft.com/keys/microsoft.asc \
-    | gpg --dearmor \
-    | tee /etc/apt/trusted.gpg.d/microsoft.gpg > /dev/null
+# Install prerequisites from Debian 12 (Bookworm)
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg \
+ && rm -rf /var/lib/apt/lists/*
 
-# Add Microsoft SQL Server repository
-RUN curl -sSL https://packages.microsoft.com/config/debian/11/prod.list \
-    -o /etc/apt/sources.list.d/mssql-release.list
+# Configure Microsoft repository for Debian 12.
+RUN curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+    | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg \
+ && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" \
+    > /etc/apt/sources.list.d/mssql-release.list
 
-# Install msodbcsql17
-RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17 && \
-    rm -rf /var/lib/apt/lists/*
+# Install Microsoft ODBC Driver 17 and UnixODBC from compatible repositories.
+RUN apt-get update \
+ && ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+    msodbcsql17 unixodbc unixodbc-dev \
+ && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Start the FastAPI application
 CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
