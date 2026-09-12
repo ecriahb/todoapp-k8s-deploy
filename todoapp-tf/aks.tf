@@ -10,7 +10,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name           = "systempool"
     node_count     = 1
-    vm_size        = "Standard_D2s_v3"
+    vm_size        = "Standard_D2as_v5"
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
     max_pods       = 30
   }
