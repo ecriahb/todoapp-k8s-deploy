@@ -3,7 +3,6 @@ kind: Service
 metadata:
   name: agentic-add-task
   annotations:
-    # Internal LoadBalancer in Azure
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   type: LoadBalancer
