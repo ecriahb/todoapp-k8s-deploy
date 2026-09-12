@@ -4,12 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       terraform_infra:
-        description: "Terraform Infra"
+        description: "Tf Apply"
         required: true
         default: false
         type: boolean
       tf_destroy:
-        description: "TF Destroy"
+        description: "Tf Destroy"
         required: true
         default: false
         type: boolean
