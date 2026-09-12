@@ -47,6 +47,8 @@ spec:
         app: ai-rca
     spec:
       serviceAccountName: ai-rca
+      imagePullSecrets:
+      - name: acr-pull-secret
       containers:
       - name: ai-rca
         image: agenticdevopsacr.azurecr.io/ai-rca:latest
