@@ -9,5 +9,5 @@ spec:
   selector:
     app: agentic-delete-task
   ports:
-  - port: 80
-    targetPort: 8000
+    - port: 80
+      targetPort: 8000
