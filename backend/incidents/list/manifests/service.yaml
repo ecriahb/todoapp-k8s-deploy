@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: agentic-get-tasks
+  name: agentic-incident-list
   annotations:
     service.beta.kubernetes.io/azure-load-balancer-internal: "true"
 spec:
   type: LoadBalancer
   selector:
-    app: agentic-get-tasks
+    app: agentic-incident-list
   ports:
     - port: 80
       targetPort: 8000
