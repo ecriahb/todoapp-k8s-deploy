@@ -61,7 +61,7 @@ jobs:
   # STAGE 2 - TERRAFORM STATE
   # ============================================================
   bootstrap-state:
-    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
+    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
     name: "2️⃣ Bootstrap Terraform State"
     needs: checkout-login
     runs-on: ubuntu-latest
@@ -116,7 +116,7 @@ jobs:
   # STAGE 3 - TERRAFORM PLAN
   # ============================================================
   terraform-plan:
-    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
+    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
     name: "3️⃣ Terraform Plan"
     needs: bootstrap-state
     runs-on: ubuntu-latest
@@ -154,7 +154,7 @@ jobs:
   # STAGE 4 - TERRAFORM APPLY / DESTROY
   # ============================================================
   terraform-deploy:
-    if: ${{ inputs.action == 'deploy' || inputs.action == 'destroy' }}
+    if: ${{ inputs.terraform_infra || inputs.tf_destroy }}
     name: "4️⃣ Terraform Apply / Destroy"
     needs: terraform-plan
     runs-on: ubuntu-latest
@@ -175,18 +175,18 @@ jobs:
         run: terraform init -input=false
 
       - name: Terraform Apply
-        if: ${{ inputs.action == 'deploy' }}
+        if: ${{ inputs.terraform_infra }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -input=false -auto-approve
 
       - name: Terraform Destroy
-        if: ${{ inputs.action == 'destroy' }}
+        if: ${{ inputs.tf_destroy }}
         working-directory: ${{ env.TF_DIR }}
         run: terraform destroy -input=false -auto-approve
 
   # ============================================================
   # STAGE 5 - AKS CONNECT & VERIFY
-  # IMPORTANT: BUILD ALSO DEPLOYS TO EXISTING AKS.
+  # K8s verification is independent of Terraform when Terraform Infra is not selected.
   # ============================================================
   aks-verify:
     name: "5️⃣ AKS Connect & Verify"
@@ -285,11 +285,11 @@ jobs:
 
   # ============================================================
   # STAGE 8 - DEPLOY KUBERNETES MANIFESTS
-  # BUILD ALSO RUNS THIS STAGE.
+  # Runs when K8s Deploy + Build Image are selected.
   # ============================================================
   kubernetes-deploy:
     name: "8️⃣ Deploy Kubernetes Manifests"
-    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || inputs.action == 'deploy') }}
+    if: ${{ always() && inputs.k8s_deploy && inputs.build_image }}
     needs: [acr-auth, build-push]
     runs-on: ubuntu-latest
     steps:
@@ -334,7 +334,7 @@ jobs:
   # ============================================================
   verify:
     name: "9️⃣ Rollout & Final Verification"
-    if: ${{ inputs.k8s_deploy && (inputs.action == 'build' || inputs.action == 'deploy') }}
+    if: ${{ always() && inputs.k8s_deploy && inputs.build_image }}
     needs: kubernetes-deploy
     runs-on: ubuntu-latest
     steps:
