@@ -1,4 +1,4 @@
-name: One Click - Infra + TodoApp
+name: Depoly - Infra + TodoApp
 
 on:
   workflow_dispatch:
