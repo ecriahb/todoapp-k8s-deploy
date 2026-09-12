@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: agentic-delete-task
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app: agentic-delete-task
@@ -13,15 +13,15 @@ spec:
         app: agentic-delete-task
     spec:
       imagePullSecrets:
-      - name: acr-pull-secret
+        - name: acr-pull-secret
       containers:
-      - name: agentic-delete-task
-        env:
-          - name: CONNECTION_STRING
-            valueFrom:
-              secretKeyRef:
-                name: agentic-sql-secret
-                key: CONNECTION_STRING
-        image: agenticdevopsacr.azurecr.io/delete-tasks:latest
-        ports:
-        - containerPort: 8000
+        - name: agentic-delete-task
+          image: agenticdevopsacr.azurecr.io/delete-tasks:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: agentic-sql-secret
+                  key: CONNECTION_STRING
