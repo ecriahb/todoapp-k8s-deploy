@@ -10,7 +10,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
   default_node_pool {
     name           = "systempool"
     node_count     = 1
-    vm_size        = "Standard_D2as_v5"
+    vm_size        = "Standard_D2s_v3"
     vnet_subnet_id = azurerm_subnet.aks_subnet.id
     max_pods       = 30
   }
@@ -28,8 +28,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
     outbound_type     = "loadBalancer"
 
-    service_cidr    = "10.244.0.0/16"
-    dns_service_ip  = "10.244.0.10"
+    service_cidr   = "10.244.0.0/16"
+    dns_service_ip = "10.244.0.10"
   }
 
   lifecycle {
@@ -37,17 +37,6 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   depends_on = [azurerm_subnet.aks_subnet]
-}
-
-# User node pool for application workloads
-resource "azurerm_kubernetes_cluster_node_pool" "userpool" {
-  name                  = "userpool"
-  kubernetes_cluster_id  = azurerm_kubernetes_cluster.aks.id
-  vm_size               = "Standard_D2as_v5"
-  node_count            = 1
-  vnet_subnet_id        = azurerm_subnet.aks_subnet.id
-  max_pods              = 30
-  mode                  = "User"
 }
 
 # ACR authentication is handled by the deployment workflow because the
