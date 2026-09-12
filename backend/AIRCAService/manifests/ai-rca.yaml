@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-rca
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ai-rca-readonly
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods","pods/log","events","services","endpoints"]
+  verbs: ["get","list","watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments","replicasets"]
+  verbs: ["get","list","watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ai-rca-readonly
+  namespace: default
+subjects:
+- kind: ServiceAccount
+  name: ai-rca
+  namespace: default
+roleRef:
+  kind: Role
+  name: ai-rca-readonly
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-rca
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-rca
+  template:
+    metadata:
+      labels:
+        app: ai-rca
+    spec:
+      serviceAccountName: ai-rca
+      containers:
+      - name: ai-rca
+        image: REPLACE_WITH_ACR/ai-rca:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: K8S_CONTEXT_ENABLED
+          value: "true"
+        - name: DEFAULT_NAMESPACE
+          value: "default"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-rca
+  namespace: default
+spec:
+  selector:
+    app: ai-rca
+  ports:
+  - port: 80
+    targetPort: 8080
