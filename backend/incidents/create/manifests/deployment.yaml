@@ -16,6 +16,12 @@ spec:
         - name: acr-pull-secret
       containers:
         - name: agentic-incident-create
+          env:
+            - name: CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: agentic-sql-secret
+                  key: CONNECTION_STRING
           image: agenticdevopsacr.azurecr.io/incident-create:latest
           ports:
             - containerPort: 8000
