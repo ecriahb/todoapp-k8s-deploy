@@ -58,33 +58,7 @@ jobs:
 
       - name: Bootstrap Terraform State
         working-directory: ${{ env.TFSTATE_DIR }}
-        run: |
-          terraform init -input=false
-
-          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-          RG_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${TFSTATE_RG}"
-          STORAGE_ID="${RG_ID}/providers/Microsoft.Storage/storageAccounts/${TFSTATE_STORAGE}"
-          CONTAINER_ID="${STORAGE_ID}/blobServices/default/containers/${TFSTATE_CONTAINER}"
-
-          if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
-            fi
-          fi
-
-          if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
-            fi
-          fi
-
-          if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
-            if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
-            fi
-          fi
-
-          terraform apply -input=false -auto-approve
+        run: terraform init -input=false
 
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
@@ -94,79 +68,6 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform validate
 
-      - name: Terraform State Recovery
-        working-directory: ${{ env.TF_DIR }}
-        shell: bash
-        run: |
-          set -e
-          terraform state pull >/dev/null
-
-          # During a fresh deployment, Azure resources can exist from an interrupted
-          # previous run while the remote Terraform state is stale. Import existing
-          # resources before planning so the provider does not attempt invalid refreshes.
-          if az group show --name "$RESOURCE_GROUP" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_resource_group.rg >/dev/null 2>&1; then
-              terraform import -input=false azurerm_resource_group.rg \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP"
-            fi
-          fi
-
-          if az network vnet show --resource-group "$RESOURCE_GROUP" --name agentic-devops-vnet >/dev/null 2>&1; then
-            if ! terraform state show azurerm_virtual_network.vnet >/dev/null 2>&1; then
-              terraform import -input=false azurerm_virtual_network.vnet \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/agentic-devops-vnet"
-            fi
-          fi
-
-          if az network vnet subnet show --resource-group "$RESOURCE_GROUP" --vnet-name agentic-devops-vnet --name aks-subnet >/dev/null 2>&1; then
-            if ! terraform state show azurerm_subnet.aks_subnet >/dev/null 2>&1; then
-              terraform import -input=false azurerm_subnet.aks_subnet \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/agentic-devops-vnet/subnets/aks-subnet"
-            fi
-          fi
-
-          if az acr show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_container_registry.acr >/dev/null 2>&1; then
-              terraform import -input=false azurerm_container_registry.acr \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME"
-            fi
-          fi
-
-          if az sql server show --resource-group "$RESOURCE_GROUP" --name agentic-devops-sql-ci >/dev/null 2>&1; then
-            if ! terraform state show azurerm_mssql_server.sqlserver >/dev/null 2>&1; then
-              terraform import -input=false azurerm_mssql_server.sqlserver \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Sql/servers/agentic-devops-sql-ci"
-            fi
-          fi
-
-          if az sql db show --resource-group "$RESOURCE_GROUP" --server agentic-devops-sql-ci --name agentsql >/dev/null 2>&1; then
-            if ! terraform state show azurerm_mssql_database.todo_db >/dev/null 2>&1; then
-              terraform import -input=false azurerm_mssql_database.todo_db \
-                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Sql/servers/agentic-devops-sql-ci/databases/agentsql"
-            fi
-          fi
-
-      - name: Reconcile Terraform State Before Plan
-        working-directory: ${{ env.TF_DIR }}
-        shell: bash
-        run: |
-          set -e
-
-          # Clear the taint left by the earlier failed subnet operation.
-          terraform untaint azurerm_subnet.aks_subnet 2>/dev/null || true
-
-          # If Azure no longer has a resource but Terraform state still does,
-          # remove only that stale state entry so Terraform can recreate it.
-          if ! az sql server show --resource-group "$RESOURCE_GROUP" --name agentic-devops-sql-ci >/dev/null 2>&1; then
-            terraform state rm azurerm_mssql_server.sqlserver 2>/dev/null || true
-          fi
-
-          if ! az sql db show --resource-group "$RESOURCE_GROUP" --server agentic-devops-sql-ci --name agentsql >/dev/null 2>&1; then
-            terraform state rm azurerm_mssql_database.todo_db 2>/dev/null || true
-          fi
-
-          # Give Azure SQL ARM APIs time to become consistent after create/delete.
-          sleep 30
       - name: Terraform Plan
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false
@@ -191,34 +92,6 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Bootstrap Terraform State
-        working-directory: ${{ env.TFSTATE_DIR }}
-        run: |
-          terraform init -input=false
-
-          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-          RG_ID="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${TFSTATE_RG}"
-          STORAGE_ID="${RG_ID}/providers/Microsoft.Storage/storageAccounts/${TFSTATE_STORAGE}"
-          CONTAINER_ID="${STORAGE_ID}/blobServices/default/containers/${TFSTATE_CONTAINER}"
-
-          if az group show --name "$TFSTATE_RG" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_resource_group.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_resource_group.tfstate "$RG_ID"
-            fi
-          fi
-
-          if az storage account show --name "$TFSTATE_STORAGE" --resource-group "$TFSTATE_RG" >/dev/null 2>&1; then
-            if ! terraform state show azurerm_storage_account.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_storage_account.tfstate "$STORAGE_ID"
-            fi
-          fi
-
-          if az storage container show --name "$TFSTATE_CONTAINER" --account-name "$TFSTATE_STORAGE" --auth-mode login >/dev/null 2>&1; then
-            if ! terraform state show azurerm_storage_container.tfstate >/dev/null 2>&1; then
-              terraform import -input=false azurerm_storage_container.tfstate "$CONTAINER_ID"
-            fi
-          fi
-
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
@@ -229,10 +102,6 @@ jobs:
 
       - name: Terraform Destroy
         working-directory: ${{ env.TF_DIR }}
-        run: terraform destroy -input=false -auto-approve
-
-      - name: Cleanup Terraform State Storage
-        working-directory: ${{ env.TFSTATE_DIR }}
         run: terraform destroy -input=false -auto-approve
 
   build-image:
@@ -283,20 +152,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
       - name: Get AKS Credentials
         run: |
           az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER" --overwrite-existing
+
       - name: Verify AKS
         run: |
           kubectl cluster-info
           kubectl get nodes -o wide
+
       - name: Terraform Init for SQL Outputs
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
+
       - name: Create / Update SQL Connection Secret
         working-directory: ${{ env.TF_DIR }}
         shell: bash
@@ -304,13 +181,16 @@ jobs:
           SQL_CONNECTION_STRING="$(terraform output -raw sql_connection_string)"
           test -n "$SQL_CONNECTION_STRING"
           kubectl create secret generic agentic-sql-secret --from-literal=CONNECTION_STRING="$SQL_CONNECTION_STRING" --namespace=default --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
+
       - name: Create / Update ACR imagePullSecret
         run: |
           ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
           kubectl create secret docker-registry "$ACR_PULL_SECRET" --docker-server="$ACR_NAME.azurecr.io" --docker-username="$ACR_USERNAME" --docker-password="$ACR_PASSWORD" --namespace=default --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply Backend Manifests
         run: |
           kubectl apply -f ./backend/incidents/create/manifests/deployment.yaml
@@ -320,10 +200,12 @@ jobs:
           kubectl apply -f ./backend/incidents/resolve/manifests/deployment.yaml
           kubectl apply -f ./backend/incidents/resolve/manifests/service.yaml
           kubectl apply -f ./backend/AIRCAService/manifests/ai-rca.yaml
+
       - name: Apply Frontend Manifests
         run: |
           kubectl apply -f ./frontend/manifests/deployment.yaml
           kubectl apply -f ./frontend/manifests/service.yaml
+
       - name: Set Immutable Image Tags
         if: ${{ inputs.build_image }}
         run: |
@@ -332,6 +214,7 @@ jobs:
           kubectl -n default set image deployment/agentic-incident-resolve agentic-incident-resolve="$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
           kubectl -n default set image deployment/ai-rca ai-rca="$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-cloudops-ui agentic-cloudops-ui="$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
+
       - name: Wait for Rollouts
         run: |
           kubectl rollout status deployment/agentic-incident-create --timeout=180s
@@ -339,6 +222,7 @@ jobs:
           kubectl rollout status deployment/agentic-incident-resolve --timeout=180s
           kubectl rollout status deployment/ai-rca --timeout=180s
           kubectl rollout status deployment/agentic-cloudops-ui --timeout=180s
+
       - name: Final Verification
         run: |
           echo "=== Deployments ==="
