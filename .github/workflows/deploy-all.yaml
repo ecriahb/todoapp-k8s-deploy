@@ -40,10 +40,6 @@ env:
   ACR_PULL_SECRET: acr-pull-secret
 
 jobs:
-
-  # ============================================================
-  # STAGE 1 - TERRAFORM INFRA
-  # ============================================================
   terraform-infra:
     name: "1️⃣ Terraform Infra"
     if: ${{ inputs.terraform_infra && !inputs.tf_destroy }}
@@ -98,6 +94,58 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform validate
 
+      - name: Terraform State Recovery
+        working-directory: ${{ env.TF_DIR }}
+        shell: bash
+        run: |
+          set -e
+          terraform state pull >/dev/null
+
+          # During a fresh deployment, Azure resources can exist from an interrupted
+          # previous run while the remote Terraform state is stale. Import existing
+          # resources before planning so the provider does not attempt invalid refreshes.
+          if az group show --name "$RESOURCE_GROUP" >/dev/null 2>&1; then
+            if ! terraform state show azurerm_resource_group.rg >/dev/null 2>&1; then
+              terraform import -input=false azurerm_resource_group.rg \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP"
+            fi
+          fi
+
+          if az network vnet show --resource-group "$RESOURCE_GROUP" --name agentic-devops-vnet >/dev/null 2>&1; then
+            if ! terraform state show azurerm_virtual_network.vnet >/dev/null 2>&1; then
+              terraform import -input=false azurerm_virtual_network.vnet \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/agentic-devops-vnet"
+            fi
+          fi
+
+          if az network vnet subnet show --resource-group "$RESOURCE_GROUP" --vnet-name agentic-devops-vnet --name aks-subnet >/dev/null 2>&1; then
+            if ! terraform state show azurerm_subnet.aks_subnet >/dev/null 2>&1; then
+              terraform import -input=false azurerm_subnet.aks_subnet \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Network/virtualNetworks/agentic-devops-vnet/subnets/aks-subnet"
+            fi
+          fi
+
+          if az acr show --resource-group "$RESOURCE_GROUP" --name "$ACR_NAME" >/dev/null 2>&1; then
+            if ! terraform state show azurerm_container_registry.acr >/dev/null 2>&1; then
+              terraform import -input=false azurerm_container_registry.acr \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.ContainerRegistry/registries/$ACR_NAME"
+            fi
+          fi
+
+          if az sql server show --resource-group "$RESOURCE_GROUP" --name agentic-devops-sql-ci >/dev/null 2>&1; then
+            if ! terraform state show azurerm_mssql_server.sqlserver >/dev/null 2>&1; then
+              terraform import -input=false azurerm_mssql_server.sqlserver \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Sql/servers/agentic-devops-sql-ci"
+            fi
+          fi
+
+          if az sql db show --resource-group "$RESOURCE_GROUP" --server agentic-devops-sql-ci --name agentsql >/dev/null 2>&1; then
+            if ! terraform state show azurerm_mssql_database.todo_db >/dev/null 2>&1; then
+              terraform import -input=false azurerm_mssql_database.todo_db \
+                "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.Sql/servers/agentic-devops-sql-ci/databases/agentsql"
+            fi
+          fi
+
       - name: Terraform Plan
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false
@@ -106,9 +154,6 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -input=false -auto-approve
 
-  # ============================================================
-  # STAGE 2 - TF DESTROY
-  # ============================================================
   tf-destroy:
     name: "2️⃣ TF Destroy"
     if: ${{ inputs.tf_destroy }}
@@ -169,11 +214,6 @@ jobs:
         working-directory: ${{ env.TFSTATE_DIR }}
         run: terraform destroy -input=false -auto-approve
 
-  # ============================================================
-  # STAGE 3 - BUILD IMAGE
-  # Runs independently when Terraform is not selected.
-  # If Terraform Infra is selected, it waits for Terraform first.
-  # ============================================================
   build-image:
     name: "3️⃣ Build Image"
     needs: terraform-infra
@@ -182,51 +222,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
-
       - name: Build and Push Incident Create
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-create:latest" ./backend/incidents/create
           docker push "$ACR_NAME.azurecr.io/incident-create:${GITHUB_SHA}"
           docker push "$ACR_NAME.azurecr.io/incident-create:latest"
-
       - name: Build and Push Incident List
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-list:latest" ./backend/incidents/list
           docker push "$ACR_NAME.azurecr.io/incident-list:${GITHUB_SHA}"
           docker push "$ACR_NAME.azurecr.io/incident-list:latest"
-
       - name: Build and Push Incident Resolve
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/incident-resolve:latest" ./backend/incidents/resolve
           docker push "$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
           docker push "$ACR_NAME.azurecr.io/incident-resolve:latest"
-
       - name: Build and Push AI RCA
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/ai-rca:latest" ./backend/AIRCAService
           docker push "$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
           docker push "$ACR_NAME.azurecr.io/ai-rca:latest"
-
       - name: Build and Push Frontend
         run: |
           docker build --platform linux/amd64 -t "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}" -t "$ACR_NAME.azurecr.io/cloudops-ui:latest" ./frontend
           docker push "$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
           docker push "$ACR_NAME.azurecr.io/cloudops-ui:latest"
 
-  # ============================================================
-  # STAGE 4 - K8S DEPLOY
-  # Includes AKS auth + ACR pull secret + manifests + rollout.
-  # This removes the old dependency chain that caused K8s Deploy
-  # to be skipped when the Build stage was selected.
-  # ============================================================
   k8s-deploy:
     name: "4️⃣ K8s Deploy"
     needs: [terraform-infra, build-image]
@@ -235,47 +262,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
       - name: Get AKS Credentials
         run: |
-          az aks get-credentials             --resource-group "$RESOURCE_GROUP"             --name "$AKS_CLUSTER"             --overwrite-existing
-
+          az aks get-credentials --resource-group "$RESOURCE_GROUP" --name "$AKS_CLUSTER" --overwrite-existing
       - name: Verify AKS
         run: |
           kubectl cluster-info
           kubectl get nodes -o wide
-
       - name: Terraform Init for SQL Outputs
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -input=false
-
       - name: Create / Update SQL Connection Secret
         working-directory: ${{ env.TF_DIR }}
         shell: bash
         run: |
           SQL_CONNECTION_STRING="$(terraform output -raw sql_connection_string)"
           test -n "$SQL_CONNECTION_STRING"
-          kubectl create secret generic agentic-sql-secret \
-            --from-literal=CONNECTION_STRING="$SQL_CONNECTION_STRING" \
-            --namespace=default \
-            --dry-run=client -o yaml | kubectl apply -f -
-          echo "agentic-sql-secret is ready"
-
+          kubectl create secret generic agentic-sql-secret --from-literal=CONNECTION_STRING="$SQL_CONNECTION_STRING" --namespace=default --dry-run=client -o yaml | kubectl apply -f -
       - name: Login to ACR
         run: az acr login --name "$ACR_NAME"
-
       - name: Create / Update ACR imagePullSecret
         run: |
           ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
           ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query 'passwords[0].value' -o tsv)
-
-          kubectl create secret docker-registry "$ACR_PULL_SECRET"             --docker-server="$ACR_NAME.azurecr.io"             --docker-username="$ACR_USERNAME"             --docker-password="$ACR_PASSWORD"             --namespace=default             --dry-run=client -o yaml | kubectl apply -f -
-
+          kubectl create secret docker-registry "$ACR_PULL_SECRET" --docker-server="$ACR_NAME.azurecr.io" --docker-username="$ACR_USERNAME" --docker-password="$ACR_PASSWORD" --namespace=default --dry-run=client -o yaml | kubectl apply -f -
       - name: Apply Backend Manifests
         run: |
           kubectl apply -f ./backend/incidents/create/manifests/deployment.yaml
@@ -285,12 +299,10 @@ jobs:
           kubectl apply -f ./backend/incidents/resolve/manifests/deployment.yaml
           kubectl apply -f ./backend/incidents/resolve/manifests/service.yaml
           kubectl apply -f ./backend/AIRCAService/manifests/ai-rca.yaml
-
       - name: Apply Frontend Manifests
         run: |
           kubectl apply -f ./frontend/manifests/deployment.yaml
           kubectl apply -f ./frontend/manifests/service.yaml
-
       - name: Set Immutable Image Tags
         if: ${{ inputs.build_image }}
         run: |
@@ -299,7 +311,6 @@ jobs:
           kubectl -n default set image deployment/agentic-incident-resolve agentic-incident-resolve="$ACR_NAME.azurecr.io/incident-resolve:${GITHUB_SHA}"
           kubectl -n default set image deployment/ai-rca ai-rca="$ACR_NAME.azurecr.io/ai-rca:${GITHUB_SHA}"
           kubectl -n default set image deployment/agentic-cloudops-ui agentic-cloudops-ui="$ACR_NAME.azurecr.io/cloudops-ui:${GITHUB_SHA}"
-
       - name: Wait for Rollouts
         run: |
           kubectl rollout status deployment/agentic-incident-create --timeout=180s
@@ -307,7 +318,6 @@ jobs:
           kubectl rollout status deployment/agentic-incident-resolve --timeout=180s
           kubectl rollout status deployment/ai-rca --timeout=180s
           kubectl rollout status deployment/agentic-cloudops-ui --timeout=180s
-
       - name: Final Verification
         run: |
           echo "=== Deployments ==="
