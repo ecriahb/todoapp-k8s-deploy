@@ -146,6 +146,27 @@ jobs:
             fi
           fi
 
+      - name: Reconcile Terraform State Before Plan
+        working-directory: ${{ env.TF_DIR }}
+        shell: bash
+        run: |
+          set -e
+
+          # Clear the taint left by the earlier failed subnet operation.
+          terraform untaint azurerm_subnet.aks_subnet 2>/dev/null || true
+
+          # If Azure no longer has a resource but Terraform state still does,
+          # remove only that stale state entry so Terraform can recreate it.
+          if ! az sql server show --resource-group "$RESOURCE_GROUP" --name agentic-devops-sql-ci >/dev/null 2>&1; then
+            terraform state rm azurerm_mssql_server.sqlserver 2>/dev/null || true
+          fi
+
+          if ! az sql db show --resource-group "$RESOURCE_GROUP" --server agentic-devops-sql-ci --name agentsql >/dev/null 2>&1; then
+            terraform state rm azurerm_mssql_database.todo_db 2>/dev/null || true
+          fi
+
+          # Give Azure SQL ARM APIs time to become consistent after create/delete.
+          sleep 30
       - name: Terraform Plan
         working-directory: ${{ env.TF_DIR }}
         run: terraform plan -input=false
