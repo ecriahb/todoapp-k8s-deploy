@@ -27,6 +27,10 @@ resource "azurerm_mssql_database" "todo_db" {
   server_id   = azurerm_mssql_server.sqlserver.id
   sku_name    = "S0"
   max_size_gb = 5
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # Allow Azure-hosted workloads to reach SQL for this demo deployment.
